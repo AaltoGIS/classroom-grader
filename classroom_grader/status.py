@@ -108,14 +108,14 @@ def repo_status(
     folder = submission_folder(settings, name, assignment)
     repo = repo_name(assignment, name)
     try:
-        if (problem := leads_outside(settings, folder)) is not None:
+        if (problem := leads_outside(folder, settings.root / "submitted")) is not None:
             return RepoStatus(name, "refused", detail=problem)
         if is_unfetched(folder):
             if fetch:
                 url = repo_url(settings.organization, repo, settings.protocol)
                 run_git(["ls-remote", "--heads", url])
             return RepoStatus(name, "not fetched")
-        if (problem := clone_problem(settings, folder, repo)) is not None:
+        if (problem := clone_problem(folder, settings.organization, repo)) is not None:
             return RepoStatus(name, "refused", detail=problem)
         if fetch:
             run_git(["fetch", "--quiet", "origin"], folder)

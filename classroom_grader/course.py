@@ -17,13 +17,18 @@ from classroom_grader.settings import (
 )
 
 
-def add_course_options(parser: argparse.ArgumentParser) -> None:
-    """Add ``--course``, ``--grader`` and ``--student`` to a command's parser."""
+def add_course_option(parser: argparse.ArgumentParser) -> None:
+    """Add ``--course`` to a command's parser."""
     parser.add_argument(
         "--course",
         type=Path,
         help="course folder (default: the nearest folder upwards with grader.toml)",
     )
+
+
+def add_course_options(parser: argparse.ArgumentParser) -> None:
+    """Add ``--course``, ``--grader`` and ``--student`` to a command's parser."""
+    add_course_option(parser)
     parser.add_argument(
         "--grader",
         help="only this grader's students (default: grader in grader.toml)",
@@ -50,13 +55,18 @@ def add_repo_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def course_settings(args: argparse.Namespace) -> Settings:
+    """Load the settings of ``--course``, or of the course around the current folder."""
+    root = args.course.resolve() if args.course else find_course_root(Path.cwd())
+    return load_settings(root)
+
+
 def open_course(args: argparse.Namespace) -> tuple[Settings, list[Student]]:
     """Load the course settings and the students selected by the course options.
 
     Usernames listed more than once in the roster are reported on stderr.
     """
-    root = args.course.resolve() if args.course else find_course_root(Path.cwd())
-    settings = load_settings(root)
+    settings = course_settings(args)
     roster = read_roster(settings.roster, settings.username_column)
     for username in roster.duplicates:
         print(
