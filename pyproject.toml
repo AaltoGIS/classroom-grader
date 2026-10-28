@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "classroom-grader"
+dynamic = ["version"]
+description = "Collect GitHub Classroom submissions into an nbgrader folder layout and push grading feedback"
+readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+authors = [{ name = "Henrikki Tenkanen" }]
+requires-python = ">=3.11"
+dependencies = []
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Education",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Education",
+]
+
+[project.scripts]
+grader = "classroom_grader.cli:main"
+
+[project.urls]
+Repository = "https://github.com/AaltoGIS/classroom-grader"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.14", "traitlets>=5"]
+
+[tool.hatch.version]
+path = "classroom_grader/__init__.py"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# No .pytest_cache in the repository folder.
+addopts = ["-p", "no:cacheprovider", "--import-mode=importlib", "--strict-markers"]
+
+[tool.ruff]
+cache-dir = "~/.cache/ruff"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "PT"]

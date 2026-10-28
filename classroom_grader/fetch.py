@@ -1,0 +1,139 @@
+"""``grader fetch``: clone or update the students' repositories in ``submitted/``."""
+
+import argparse
+from collections import Counter
+from dataclasses import dataclass
+from datetime import datetime
+from functools import partial
+
+from classroom_grader.course import (
+    add_repo_options,
+    map_in_parallel,
+    open_assignments,
+    submission_folder,
+)
+from classroom_grader.git import GitError
+from classroom_grader.github import repo_url
+from classroom_grader.repo import (
+    clone_into,
+    clone_problem,
+    fast_forward,
+    format_time,
+    grader_identity,
+    is_missing_repo,
+    is_unfetched,
+    late_commit,
+    leads_outside,
+    repo_name,
+    upstream,
+)
+from classroom_grader.settings import Assignment, Settings
+
+HELP = "Clone or update the students' repositories of the given assignments."
+STATES = (
+    "cloned",
+    "updated",
+    "up to date",
+    "empty",
+    "not updated",
+    "refused",
+    "no repo",
+    "failed",
+)
+_LISTED = {
+    "empty": "Empty repository (nothing pushed yet)",
+    "not updated": "Not updated (fetched only)",
+    "refused": "Refused",
+    "no repo": "No repo (not accepted, or no access)",
+    "failed": "Failed",
+}
+
+
+@dataclass(frozen=True)
+class FetchResult:
+    """One repository's fetch outcome; ``late`` is a commit time after the deadline."""
+
+    student: str
+    state: str
+    detail: str = ""
+    late: datetime | None = None
+
+
+def add_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add the ``grader fetch`` arguments."""
+    add_repo_options(parser)
+
+
+def run(args: argparse.Namespace) -> int:
+    """Fetch the selected students' repositories; 1 if any was refused or failed."""
+    settings, selection = open_assignments(args)
+    graders = grader_identity(settings.root)
+    failed = False
+    for assignment, names in selection:
+        fetch_one = partial(fetch_repo, settings, assignment, graders=graders)
+        results = map_in_parallel(fetch_one, names, args.jobs)
+        print(fetch_report(assignment, results))
+        failed = failed or any(r.state in ("refused", "failed") for r in results)
+    return 1 if failed else 0
+
+
+def fetch_repo(
+    settings: Settings, assignment: Assignment, name: str, *, graders: set[str]
+) -> FetchResult:
+    """Clone or update ``name``'s repository of ``assignment`` into its nbgrader folder.
+
+    A clean clone without local commits is fast-forwarded; one with local changes
+    or commits is only fetched. A folder that is not a clone of the expected
+    repository, or that leads outside ``submitted/``, is left alone.
+    """
+    folder = submission_folder(settings, name, assignment)
+    repo = repo_name(assignment, name)
+    try:
+        if (problem := leads_outside(folder, settings.root / "submitted")) is not None:
+            return FetchResult(name, "refused", problem)
+        if is_unfetched(folder):
+            clone_into(repo_url(settings.organization, repo, settings.protocol), folder)
+            state, detail = ("cloned" if upstream(folder) else "empty"), ""
+        elif (
+            problem := clone_problem(folder, settings.organization, repo)
+        ) is not None:
+            return FetchResult(name, "refused", problem)
+        else:
+            state, detail = fast_forward(folder)
+        late = (
+            None
+            if state == "empty"
+            else late_commit(folder, assignment.deadline, graders)
+        )
+    except GitError as error:
+        if is_missing_repo(error):
+            return FetchResult(name, "no repo")
+        return FetchResult(name, "failed", str(error))
+    except (OSError, RuntimeError) as error:  # RuntimeError: a symlink loop on 3.11
+        return FetchResult(name, "failed", str(error))
+    return FetchResult(name, state, detail, late)
+
+
+def fetch_report(assignment: Assignment, results: list[FetchResult]) -> str:
+    """Summarise the results of one assignment, listing what needs attention."""
+    counts = Counter(result.state for result in results)
+    summary = (
+        ", ".join(f"{counts[s]} {s}" for s in STATES if counts[s]) or "no students"
+    )
+    lines = [f"{assignment.name}: {summary}"]
+    for state, title in _LISTED.items():
+        listed = [result for result in results if result.state == state]
+        if listed:
+            lines.append(f"{title}:")
+            lines.extend(
+                f"  {r.student}{': ' + r.detail if r.detail else ''}" for r in listed
+            )
+    late = [result for result in results if result.late]
+    if late:
+        deadline = assignment.deadline
+        lines.append(
+            f"Newest commit after the deadline {format_time(deadline, deadline)} "
+            "(commit times come from the students' computers):"
+        )
+        lines.extend(f"  {r.student}: {format_time(r.late, deadline)}" for r in late)
+    return "\n".join(lines)
