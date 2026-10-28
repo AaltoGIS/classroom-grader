@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 
 import pytest
 
@@ -79,4 +80,8 @@ def github(tmp_path, monkeypatch):
     for name in ("GH_TOKEN", "GITHUB_TOKEN"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr("classroom_grader.github.GITHUB_URL", str(tmp_path / "github"))
+    # No test reaches the real GitHub API or the user's GitHub CLI login.
+    monkeypatch.setattr("classroom_grader.github.API_URL", "http://127.0.0.1:9")
+    no_cli = [sys.executable, "-c", "raise SystemExit(1)"]
+    monkeypatch.setattr("classroom_grader.github.GH_TOKEN_COMMAND", no_cli)
     return FakeGitHub(tmp_path / "github", tmp_path / "work")

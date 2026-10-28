@@ -9,9 +9,8 @@ from pathlib import Path
 
 from classroom_grader.course import (
     add_repo_options,
-    individual_assignments,
     map_in_parallel,
-    open_course,
+    open_assignments,
     submission_folder,
 )
 from classroom_grader.git import GitError, run_git
@@ -77,12 +76,10 @@ def run(args: argparse.Namespace) -> int:
     Return 1 when any feedback is not committed or not pushed, or a repository
     could not be checked.
     """
-    settings, students = open_course(args)
-    assignments = individual_assignments(settings, args.assignments, "status")
+    settings, selection = open_assignments(args)
     graders = grader_identity(settings.root)
-    names = [student.username for student in students]
     unfinished = False
-    for assignment in assignments:
+    for assignment, names in selection:
         check = partial(
             repo_status, settings, assignment, graders=graders, fetch=not args.no_fetch
         )
@@ -147,7 +144,8 @@ def status_report(assignment: Assignment, results: list[RepoStatus]) -> str:
         ]
         for r in results
     ]
-    headers = ["Student", "State", "Other local changes", "Late"]
+    who = "Team" if assignment.type == "group" else "Student"
+    headers = [who, "State", "Other local changes", "Late"]
     lines = [assignment.name, format_table(headers, rows)]
     problems = [r for r in results if r.detail]
     if problems:

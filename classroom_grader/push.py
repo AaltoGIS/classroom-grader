@@ -9,9 +9,8 @@ from pathlib import Path
 
 from classroom_grader.course import (
     add_repo_options,
-    individual_assignments,
     map_in_parallel,
-    open_course,
+    open_assignments,
     submission_folder,
 )
 from classroom_grader.git import GitError, run_git
@@ -72,11 +71,9 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
 
 def run(args: argparse.Namespace) -> int:
     """Push every selected student's feedback; return 1 if any needs attention."""
-    settings, students = open_course(args)
-    assignments = individual_assignments(settings, args.assignments, "push")
-    names = [student.username for student in students]
+    settings, selection = open_assignments(args)
     problems = False
-    for assignment in assignments:
+    for assignment, names in selection:
         push_one = partial(
             push_repo, settings, assignment, message=args.message, dry_run=args.dry_run
         )
@@ -155,7 +152,8 @@ def push_report(assignment: Assignment, results: list[PushResult]) -> str:
     summary = (
         ", ".join(f"{counts[s]} {s}" for s in STATES if counts[s]) or "no students"
     )
-    table = format_table(["Student", "Result", "Details"], rows)
+    who = "Team" if assignment.type == "group" else "Student"
+    table = format_table([who, "Result", "Details"], rows)
     return f"{assignment.name}\n{table}\n{assignment.name}: {summary}"
 
 

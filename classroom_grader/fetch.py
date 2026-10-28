@@ -8,9 +8,8 @@ from functools import partial
 
 from classroom_grader.course import (
     add_repo_options,
-    individual_assignments,
     map_in_parallel,
-    open_course,
+    open_assignments,
     submission_folder,
 )
 from classroom_grader.git import GitError
@@ -67,12 +66,10 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
 
 def run(args: argparse.Namespace) -> int:
     """Fetch the selected students' repositories; 1 if any was refused or failed."""
-    settings, students = open_course(args)
-    assignments = individual_assignments(settings, args.assignments, "fetch")
+    settings, selection = open_assignments(args)
     graders = grader_identity(settings.root)
-    names = [student.username for student in students]
     failed = False
-    for assignment in assignments:
+    for assignment, names in selection:
         fetch_one = partial(fetch_repo, settings, assignment, graders=graders)
         results = map_in_parallel(fetch_one, names, args.jobs)
         print(fetch_report(assignment, results))
