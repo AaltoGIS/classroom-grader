@@ -2,6 +2,7 @@ import pytest
 from traitlets.config.loader import PyFileConfigLoader
 
 from classroom_grader import cli
+from classroom_grader.init import GITIGNORE_LINES
 from classroom_grader.settings import load_settings
 
 FLAGS = ["--organization", "IntroSDA-2026", "--roster", "student_info.csv"]
@@ -38,6 +39,25 @@ def test_init_writes_settings_and_nbgrader_config(course, monkeypatch, flags, an
     config = PyFileConfigLoader("nbgrader_config.py", path=str(course)).load_config()
     assert config.CourseDirectory.root == str(course)
     assert config.CourseDirectory.course_id == "IntroSDA-2026"
+    gitignore = (course / ".gitignore").read_text(encoding="utf-8")
+    assert gitignore.splitlines() == list(GITIGNORE_LINES)
+
+
+@pytest.mark.parametrize(
+    ("old", "added"),
+    [
+        ("*.pyc", "\n" + "\n".join(GITIGNORE_LINES) + "\n"),
+        ("submitted/\r\n.DS_Store\r\n", "\n".join(GITIGNORE_LINES[1:]) + "\n"),
+        ("\n".join(GITIGNORE_LINES) + "\n", ""),
+    ],
+    ids=["no-final-newline", "some-present", "all-present"],
+)
+def test_existing_gitignore_gets_only_missing_lines(course, old, added):
+    gitignore = course / ".gitignore"
+    gitignore.write_bytes(old.encode())
+    args = ["init", "--course", str(course), *FLAGS, "--assignment", "Exercise-1"]
+    assert cli.main(args) == 0
+    assert gitignore.read_bytes() == (old + added).encode()
 
 
 @pytest.mark.parametrize(
@@ -54,6 +74,7 @@ def test_init_writes_settings_and_nbgrader_config(course, monkeypatch, flags, an
             "nbgrader_config.py.bak exists already",
         ),
         ({"nbgrader_config.py": None}, FLAGS, [], "is not a file"),
+        ({".gitignore": None}, FLAGS, [], ".gitignore is not a file"),
     ],
 )
 def test_init_refuses_without_writing(
