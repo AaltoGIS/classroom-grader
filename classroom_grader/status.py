@@ -1,13 +1,11 @@
 """``grader status``: whether the grading feedback has reached GitHub."""
 
 import argparse
-import json
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
-from pathlib import Path, PurePosixPath
-from typing import Any
+from pathlib import Path
 
 from classroom_grader.course import (
     add_repo_options,
@@ -19,6 +17,7 @@ from classroom_grader.course import (
 from classroom_grader.git import GitError, run_git
 from classroom_grader.github import repo_url
 from classroom_grader.repo import (
+    ahead_behind,
     clone_problem,
     commit,
     format_time,
@@ -27,11 +26,12 @@ from classroom_grader.repo import (
     is_unfetched,
     late_commit,
     leads_outside,
+    local_changes,
     repo_name,
     upstream,
 )
 from classroom_grader.settings import Assignment, Settings
-from classroom_grader.table import format_table, printable
+from classroom_grader.table import format_table
 
 HELP = "Show whether each student's feedback is committed and pushed."
 STATES = (
@@ -48,9 +48,6 @@ STATES = (
 )
 # States in which feedback has not reached GitHub, or could not be checked.
 UNFINISHED = {"feedback not committed", "not pushed", "diverged", "refused", "failed"}
-NOISE_FOLDER = ".ipynb_checkpoints"
-# Larger notebooks (in bytes) are not parsed to look for metadata-only changes.
-NOTEBOOK_LIMIT = 20_000_000
 
 
 @dataclass(frozen=True)
@@ -122,9 +119,7 @@ def repo_status(
             return RepoStatus(name, "refused", detail=problem)
         if fetch:
             run_git(["fetch", "--quiet", "origin"], folder)
-        feedback_changed, other_changes = _local_changes(
-            folder, settings.feedback_files
-        )
+        feedback_changed, other_changes = local_changes(folder, settings.feedback_files)
         state = _sync_state(folder, feedback_changed)
         if state is None:
             return RepoStatus(
@@ -176,103 +171,9 @@ def _sync_state(folder: Path, feedback_changed: bool) -> str | None:
         return "empty" if head is None else None
     if head is None:
         return "student pushed since"
-    counts = run_git(
-        ["rev-list", "--left-right", "--count", f"HEAD...{tracked}"], folder
-    )
-    ahead, behind = (int(count) for count in counts.split())
+    ahead, behind = ahead_behind(folder, tracked)
     if ahead and behind:
         return "diverged"
     if ahead:
         return "not pushed"
     return "student pushed since" if behind else "up to date"
-
-
-def _local_changes(
-    folder: Path, feedback_files: tuple[str, ...]
-) -> tuple[bool, tuple[str, ...]]:
-    """Return whether a feedback file changed, and the other changed files.
-
-    A feedback file counts as changed also when it is new but ignored by the
-    repository's .gitignore. Files in ``.ipynb_checkpoints`` folders are left
-    out, and a notebook whose changes are all in metadata is marked "(metadata
-    only)". A rename counts as a change of both paths.
-    """
-    feedback = set(feedback_files)
-    entries = iter(
-        run_git(
-            ["status", "--porcelain=v1", "-z", "--untracked-files=all"], folder
-        ).split("\0")
-    )
-    ignored = run_git(
-        ["ls-files", "--others", "--ignored", "--exclude-standard", "--"]
-        + [f":(literal){path}" for path in sorted(feedback)],
-        folder,
-    )
-    feedback_changed = bool(ignored.strip())
-    other: list[str] = []
-    for entry in entries:
-        if not entry:
-            continue
-        code, path = entry[:2], entry[3:]
-        paths = [path]
-        if "R" in code or "C" in code:  # the next entry is the path moved or copied
-            source = next(entries, "")
-            if "R" in code:
-                paths.append(source)
-        for changed in paths:
-            if changed in feedback:
-                feedback_changed = True
-            elif NOISE_FOLDER in PurePosixPath(changed).parts:
-                continue
-            elif changed.endswith(".ipynb") and _metadata_only(folder, changed, code):
-                other.append(f"{printable(changed)} (metadata only)")
-            else:
-                other.append(printable(changed))
-    return feedback_changed, tuple(other)
-
-
-def _metadata_only(folder: Path, path: str, code: str) -> bool:
-    """Tell whether notebook ``path`` differs from HEAD only in metadata.
-
-    ``code`` is the porcelain status: the staged version is compared when the
-    first letter is M, the working copy when the second is. A version larger
-    than ``NOTEBOOK_LIMIT`` makes the answer no.
-    """
-    if code not in (" M", "M ", "MM"):
-        return False
-    try:
-        objects = [f"HEAD:{path}"] + ([f":0:{path}"] if code[0] == "M" else [])
-        sizes = [int(run_git(["cat-file", "-s", name], folder)) for name in objects]
-        if max(sizes) > NOTEBOOK_LIMIT:
-            return False
-        texts = [run_git(["show", name], folder) for name in objects]
-        if code[1] == "M":
-            with (folder / path).open("rb") as file:
-                data = file.read(NOTEBOOK_LIMIT + 1)
-            if len(data) > NOTEBOOK_LIMIT:
-                return False
-            texts.append(data.decode("utf-8"))
-        committed, *changed = (_comparable(text) for text in texts)
-        return all(version == committed for version in changed)
-    except (GitError, OSError, ValueError, RecursionError):
-        return False
-
-
-def _comparable(text: str) -> str:
-    """Return notebook JSON without metadata, as text that keeps JSON types apart."""
-    return json.dumps(_without_metadata(json.loads(text)), sort_keys=True)
-
-
-def _without_metadata(notebook: Any) -> Any:
-    """Return a notebook without its own metadata and its cells' metadata."""
-    if not isinstance(notebook, dict):
-        return notebook
-    rest = {key: value for key, value in notebook.items() if key != "metadata"}
-    if isinstance(rest.get("cells"), list):
-        rest["cells"] = [
-            {key: value for key, value in cell.items() if key != "metadata"}
-            if isinstance(cell, dict)
-            else cell
-            for cell in rest["cells"]
-        ]
-    return rest
