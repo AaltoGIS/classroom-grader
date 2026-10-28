@@ -4,8 +4,9 @@ channels:
   - conda-forge
 
 dependencies:
-  - python=3.13
+  - python=3.14
   - git
+  - gh
   - jupyterlab=4.3.4
   - jupyterlab-git
   - nbgrader
@@ -32,7 +33,6 @@ dependencies:
   - openpyxl
   - osmnx
   - palettable
-  - pandana
   - plotly
   - pointpats
   - pyrosm
@@ -52,7 +52,6 @@ dependencies:
   - statsmodels
   - seaborn
   - pandas
-  - urbanaccess
   - nose
   - jinja2
   - pip
