@@ -103,19 +103,9 @@ def test_fetch_clones_updates_and_lists_what_needs_attention(
     assert not (submitted / "dave").exists()
 
 
-@pytest.mark.parametrize(
-    ("assignment", "message"),
-    [
-        (
-            "Exercise-9",
-            "not in grader.toml: Exercise-9; its assignments: Exercise-1, "
-            "Final-assignment",
-        ),
-        ("final-assignment", "Final-assignment is a group assignment"),
-    ],
-)
-def test_fetch_refuses_unknown_and_group_assignments(
-    fetch_course, capsys, assignment, message
-):
-    assert cli.main(["fetch", assignment, "--course", str(fetch_course)]) == 1
-    assert message in capsys.readouterr().err
+def test_fetch_refuses_an_unknown_assignment(fetch_course, capsys):
+    assert cli.main(["fetch", "Exercise-9", "--course", str(fetch_course)]) == 1
+    assert (
+        "not in grader.toml: Exercise-9; its assignments: Exercise-1, Final-assignment"
+        in capsys.readouterr().err
+    )

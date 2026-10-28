@@ -7,8 +7,8 @@ from classroom_grader import GraderError
 from classroom_grader.settings import (
     Assignment,
     SettingsError,
-    _folder_name_problem,
     find_course_root,
+    folder_name_problem,
     load_settings,
 )
 
@@ -173,8 +173,8 @@ def test_invalid_settings_report_every_problem(course, text, problems):
         ("COM\u00b9", "reserved name on Windows"),
     ],
 )
-def test_folder_name_problems(name, problem):
-    assert _folder_name_problem(name) == problem
+def testfolder_name_problems(name, problem):
+    assert folder_name_problem(name) == problem
 
 
 @pytest.mark.parametrize(

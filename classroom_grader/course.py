@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import TypeVar
 
 from classroom_grader import GraderError
-from classroom_grader.roster import Student, read_roster, select_students
+from classroom_grader.github import team_names
+from classroom_grader.roster import Roster, Student, read_roster, select_students
 from classroom_grader.settings import (
     Assignment,
     Settings,
@@ -37,7 +38,7 @@ def add_course_options(parser: argparse.ArgumentParser) -> None:
         "--student",
         action="append",
         metavar="NAME",
-        help="only this student; repeat for more",
+        help="only this student, or team in a group assignment; repeat for more",
     )
 
 
@@ -67,15 +68,59 @@ def open_course(args: argparse.Namespace) -> tuple[Settings, list[Student]]:
     Usernames listed more than once in the roster are reported on stderr.
     """
     settings = course_settings(args)
-    roster = read_roster(settings.roster, settings.username_column)
-    for username in roster.duplicates:
-        print(
-            f"grader: warning: {username} is listed more than once in "
-            f"{settings.roster}; using the first row",
-            file=sys.stderr,
-        )
+    roster = _read_roster(settings)
     grader = args.grader or settings.grader
     return settings, select_students(roster.students, grader, args.student or ())
+
+
+def open_assignments(
+    args: argparse.Namespace,
+) -> tuple[Settings, list[tuple[Assignment, list[str]]]]:
+    """Load the settings and, per named assignment, the students or teams to handle.
+
+    An individual assignment gets the roster's students (of ``--grader``); a
+    group assignment gets the teams whose repositories are on GitHub, whatever
+    ``--grader`` says.
+    ``--student`` narrows both to the named students and teams; a name that
+    matches none of them is an error, and so is a team whose folder would be a
+    roster student's.
+    """
+    settings = course_settings(args)
+    assignments = select_assignments(settings, args.assignments)
+    roster = _read_roster(settings)
+    students = []
+    if any(assignment.type != "group" for assignment in assignments):
+        grader = args.grader or settings.grader
+        students = [s.username for s in select_students(roster.students, grader)]
+    usernames = {student.username.casefold() for student in roster.students}
+    wanted = {name.casefold() for name in args.student or ()}
+    selection = []
+    for assignment in assignments:
+        names = students
+        if assignment.type == "group":
+            names = team_names(settings.organization, assignment.repo_prefix)
+            if clashes := [team for team in names if team.casefold() in usernames]:
+                raise GraderError(
+                    f"{assignment.name}: the teams {', '.join(clashes)} have the "
+                    "names of roster students, so they would share their folders "
+                    "in submitted/; rename the teams on GitHub"
+                )
+            if not names:
+                print(
+                    f"grader: warning: no repositories named {assignment.repo_prefix}-*"
+                    f" are visible in {settings.organization}",
+                    file=sys.stderr,
+                )
+        selection.append(
+            (
+                assignment,
+                [name for name in names if not wanted or name.casefold() in wanted],
+            )
+        )
+    found = {name.casefold() for _, names in selection for name in names}
+    if unknown := [name for name in args.student or () if name.casefold() not in found]:
+        raise GraderError(f"no selected student or team is called {', '.join(unknown)}")
+    return settings, selection
 
 
 def select_assignments(settings: Settings, names: Sequence[str]) -> list[Assignment]:
@@ -92,20 +137,6 @@ def select_assignments(settings: Settings, names: Sequence[str]) -> list[Assignm
             by_name[name.casefold()].name: by_name[name.casefold()] for name in names
         }.values()
     )
-
-
-def individual_assignments(
-    settings: Settings, names: Sequence[str], command: str
-) -> list[Assignment]:
-    """Return the named assignments; a group assignment is an error for ``command``."""
-    assignments = select_assignments(settings, names)
-    for assignment in assignments:
-        if assignment.type == "group":
-            raise GraderError(
-                f"{assignment.name} is a group assignment; grader {command} does not "
-                "handle team repositories yet"
-            )
-    return assignments
 
 
 Item = TypeVar("Item")
@@ -132,3 +163,15 @@ def _positive_int(text: str) -> int:
             f"{text!r} is not a whole number of at least 1"
         )
     return int(text)
+
+
+def _read_roster(settings: Settings) -> Roster:
+    """Read the course roster, warning on stderr about usernames listed twice."""
+    roster = read_roster(settings.roster, settings.username_column)
+    for username in roster.duplicates:
+        print(
+            f"grader: warning: {username} is listed more than once in "
+            f"{settings.roster}; using the first row",
+            file=sys.stderr,
+        )
+    return roster

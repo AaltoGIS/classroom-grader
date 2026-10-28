@@ -191,7 +191,7 @@ def _assignments(
     folded: dict[tuple[str, str], str] = {}
     for name, entry in table.items():
         label = f"assignments.{printable(name)}"
-        if (reason := _folder_name_problem(name)) is not None:
+        if (reason := folder_name_problem(name)) is not None:
             problems.append(f"{label}: {reason}")
         # Windows compares folder names by uppercase, macOS by case folding.
         nfc = unicodedata.normalize("NFC", name)
@@ -246,7 +246,7 @@ def _invalid(label: str, key: str, value: str, given: str | None, kind: str) -> 
     return f"{label}.{key}: the default {value!r} is not {kind}; set {key}"
 
 
-def _folder_name_problem(name: str) -> str | None:
+def folder_name_problem(name: str) -> str | None:
     """Say why ``name`` cannot be a folder name on Windows, macOS and Linux."""
     if not name.strip() or name in (".", ".."):
         return "not a folder name"
