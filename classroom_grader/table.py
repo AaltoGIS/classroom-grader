@@ -13,3 +13,8 @@ def format_table(headers: Sequence[str], rows: Iterable[Sequence[str]]) -> str:
         ).rstrip()
         for line in lines
     )
+
+
+def printable(text: str) -> str:
+    """Return ``text`` for output, quoted when it has unprintable characters."""
+    return text if text.isprintable() else repr(text)
