@@ -27,7 +27,7 @@ grader = "classroom_grader.cli:main"
 Repository = "https://github.com/AaltoGIS/classroom-grader"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.14"]
+dev = ["pytest>=8", "ruff>=0.14", "traitlets>=5"]
 
 [tool.hatch.version]
 path = "classroom_grader/__init__.py"

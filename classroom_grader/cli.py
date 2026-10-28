@@ -1,10 +1,11 @@
 """The ``grader`` command line: argument parsing and subcommand dispatch."""
 
 import argparse
+import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from classroom_grader import __version__
+from classroom_grader import GraderError, __version__, init
 
 
 @dataclass(frozen=True)
@@ -17,7 +18,9 @@ class Command:
     run: Callable[[argparse.Namespace], int]
 
 
-COMMANDS: tuple[Command, ...] = ()
+COMMANDS: tuple[Command, ...] = (
+    Command("init", init.HELP, init.add_arguments, init.run),
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -42,11 +45,17 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     """Run ``grader`` with ``argv`` (default: ``sys.argv[1:]``); return the exit code.
 
-    Without a subcommand, print the help text and return 2.
+    Without a subcommand, print the help text and return 2. A ``GraderError``
+    or an ``OSError`` (such as a denied write) is printed without a traceback
+    and returns 1.
     """
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command is None:
         parser.print_help()
         return 2
-    return args.run(args)
+    try:
+        return args.run(args)
+    except (GraderError, OSError) as exc:
+        print(f"grader: {exc}", file=sys.stderr)
+        return 1
