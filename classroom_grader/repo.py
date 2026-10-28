@@ -8,7 +8,7 @@ from typing import Any
 
 from classroom_grader.git import GitError, run_git
 from classroom_grader.github import is_repo_url, without_credentials
-from classroom_grader.settings import Assignment, Settings
+from classroom_grader.settings import Assignment
 from classroom_grader.table import printable
 
 CLASSROOM_BOT = "github-classroom[bot]"
@@ -41,15 +41,15 @@ def is_unfetched(folder: Path) -> bool:
     return not folder.exists() or (folder.is_dir() and not any(folder.iterdir()))
 
 
-def leads_outside(settings: Settings, folder: Path) -> str | None:
-    """Say so when ``folder`` resolves outside ``submitted/``, through a link."""
-    submitted = (settings.root / "submitted").resolve()
-    if folder.resolve().is_relative_to(submitted):
+def leads_outside(folder: Path, base: Path) -> str | None:
+    """Say so when ``folder`` resolves outside ``base``, through a link."""
+    base = base.resolve()
+    if folder.resolve().is_relative_to(base):
         return None
-    return f"the folder leads outside {submitted}"
+    return f"the folder leads outside {base}"
 
 
-def clone_problem(settings: Settings, folder: Path, repo: str) -> str | None:
+def clone_problem(folder: Path, owner: str, repo: str) -> str | None:
     """Say why ``folder`` is not a clone of the expected repository, if it is not."""
     git_folder = folder / ".git"
     if git_folder.is_symlink() or not git_folder.is_dir():
@@ -57,14 +57,14 @@ def clone_problem(settings: Settings, folder: Path, repo: str) -> str | None:
     if "origin" not in run_git(["remote"], folder).split():
         return "it has no origin remote"
     origin = run_git(["remote", "get-url", "origin"], folder).strip()
-    if not is_repo_url(origin, settings.organization, repo):
+    if not is_repo_url(origin, owner, repo):
         shown = repr(without_credentials(origin))
-        return f"its origin is {shown}, not {settings.organization}/{repo}"
+        return f"its origin is {shown}, not {owner}/{repo}"
     push_urls = run_git(["remote", "get-url", "--push", "--all", "origin"], folder)
     for url in push_urls.splitlines():
-        if not is_repo_url(url, settings.organization, repo):
+        if not is_repo_url(url, owner, repo):
             shown = repr(without_credentials(url))
-            return f"its push URL is {shown}, not {settings.organization}/{repo}"
+            return f"its push URL is {shown}, not {owner}/{repo}"
     return None
 
 
@@ -226,3 +226,42 @@ def _without_metadata(notebook: Any) -> Any:
             for cell in rest["cells"]
         ]
     return rest
+
+
+def clone_into(url: str, folder: Path) -> None:
+    """Clone ``url`` into ``folder``; on failure, remove a student folder it made."""
+    created = not folder.parent.exists()
+    folder.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        run_git(["clone", "--quiet", url, str(folder)])
+    except (GitError, OSError):
+        if created:
+            with contextlib.suppress(OSError):
+                folder.parent.rmdir()
+        raise
+
+
+def fast_forward(folder: Path) -> tuple[str, str]:
+    """Fetch ``folder`` and fast-forward it unless it has local changes or commits.
+
+    Return the state ("updated", "up to date", "empty" or "not updated") and,
+    for "not updated", the reason.
+    """
+    run_git(["fetch", "--quiet", "origin"], folder)
+    before = commit(folder, "HEAD")
+    tracked = upstream(folder)
+    if tracked is None:
+        if before is None:
+            return "empty", ""
+        return "not updated", "its checkout does not track a branch on origin"
+    changed = bool(run_git(["status", "--porcelain", "--untracked-files=no"], folder))
+    ahead = 0
+    if before is not None:
+        ahead = int(run_git(["rev-list", "--count", f"{tracked}..HEAD"], folder))
+    if changed or ahead:
+        reasons = ["local changes"] if changed else []
+        if ahead:
+            reasons.append(f"{ahead} local commit{'s' if ahead > 1 else ''}")
+        return "not updated", " and ".join(reasons)
+    run_git(["merge", "--ff-only", "--quiet", tracked], folder)
+    return ("updated" if commit(folder, "HEAD") != before else "up to date"), ""

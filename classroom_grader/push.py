@@ -104,11 +104,11 @@ def push_repo(
     folder = submission_folder(settings, name, assignment)
     repo = repo_name(assignment, name)
     try:
-        if (problem := leads_outside(settings, folder)) is not None:
+        if (problem := leads_outside(folder, settings.root / "submitted")) is not None:
             return PushResult(name, "refused", problem)
         if is_unfetched(folder):
             return PushResult(name, "not fetched")
-        if (problem := clone_problem(settings, folder, repo)) is not None:
+        if (problem := clone_problem(folder, settings.organization, repo)) is not None:
             return PushResult(name, "refused", problem)
         run_git(["fetch", "--quiet", "origin"], folder)
         tracked = upstream(folder)
