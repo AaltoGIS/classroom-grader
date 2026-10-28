@@ -5,8 +5,9 @@
 The first version of `grader`, which replaces the scripts of
 AaltoGIS/gradertools.
 
-- `grader init` writes the course settings, `grader.toml`, and a plain
-  `nbgrader_config.py`; settings are checked as a whole, with every problem
+- `grader init` writes the course settings, `grader.toml`, a plain
+  `nbgrader_config.py`, and a `.gitignore` for sharing the course folder as a
+  private repository; settings are checked as a whole, with every problem
   reported by name.
 - The roster CSV is read in the formats of earlier courses (comma, semicolon
   or tab; UTF-8 or Windows-1252); `--grader` and `--student` select students.

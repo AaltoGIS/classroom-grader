@@ -110,14 +110,36 @@ Load the key into an SSH agent and connect once with `ssh -T git@github.com`
 to accept GitHub's host key; otherwise SSH asks for the passphrase or the host
 key in the middle of a run, for several repositories at a time.
 
+### The course folder
+
+Each course keeps its settings file [`grader.toml`](#gradertoml), the roster
+and `nbgrader_config.py` in a private repository in its GitHub organization,
+for example `IntroSDA-2026/grading`; the teacher tells you its name. Your
+clone of it is your course folder. Clone it once, after the steps above, in
+the folder where you want to keep your grading (for example `Documents`):
+
+```
+git clone https://github.com/IntroSDA-2026/grading IntroSDA-2026
+```
+
+This creates the course folder `IntroSDA-2026`. The student repositories and
+nbgrader's files go into it too (`submitted/`, `source/`, `release/` and so
+on); the course repository's `.gitignore` keeps them out of it.
+
 ## A grading round
 
-Open a terminal (on Windows the Miniforge Prompt), go to the course folder,
-which holds the course's settings file [`grader.toml`](#gradertoml) and the
-roster, and activate the course environment. The examples
-grade Exercise 3 for the assistant Emma. `--grader` overrides the `grader`
-setting in `grader.toml`; without either, every student in the roster is
-included. Name single students with `--student alice`.
+Open a terminal (on Windows the Miniforge Prompt), activate the course
+environment, go to your course folder with `cd`, and get the teacher's latest
+changes to the settings and the roster:
+
+```
+git pull
+```
+
+The examples grade Exercise 3 for the assistant Emma. `--grader Emma`
+selects the students that the roster's `grader` column gives to Emma; without
+it, every student in the roster is included. Name single students with
+`--student alice`.
 
 1. Check which students are yours:
 
@@ -185,16 +207,41 @@ time (default 8).
 
 ## Setting up a course
 
-The teacher does this once per course, in an empty course folder that holds
-the roster:
+The teacher does this once per course.
 
-```
-grader init --organization IntroSDA-2026 --roster student_info.csv --assignment Exercise-1 --assignment Exercise-2
-```
+1. Create a private repository for the course settings in the course's
+   organization, for example `IntroSDA-2026/grading`: on
+   <https://github.com/new>, choose the organization as the owner and
+   *Private* as the visibility. The assistants need read access to it.
 
-Values left out are asked for. `grader init` writes `grader.toml` and a plain
-`nbgrader_config.py`. An existing `nbgrader_config.py` is replaced only after
-you confirm, and the old one is kept as `nbgrader_config.py.bak`.
+2. Clone it as in [The course folder](#the-course-folder) and copy the
+   roster into the clone.
+
+3. In the clone, run:
+
+   ```
+   grader init --organization IntroSDA-2026 --roster student_info.csv --assignment Exercise-1 --assignment Exercise-2
+   ```
+
+   Values left out are asked for. `grader init` writes `grader.toml`, a plain
+   `nbgrader_config.py`, and a `.gitignore` that keeps the folders grader and
+   nbgrader fill on each computer (`submitted/`, `source/`, `release/`,
+   `autograded/`, `feedback/` and `gradebook.db`) out of the repository. An
+   existing `nbgrader_config.py` is replaced only after you confirm, and the
+   old one is kept as `nbgrader_config.py.bak`; an existing `.gitignore` gets
+   the lines it lacks.
+
+4. Add deadlines and group assignments to `grader.toml` (see below), then
+   share the files:
+
+   ```
+   git add grader.toml nbgrader_config.py .gitignore student_info.csv
+   git commit -m "Add the course settings"
+   git push
+   ```
+
+When you change `grader.toml` or the roster later, commit and push again; the
+assistants get the changes with `git pull`.
 
 ### The roster
 
@@ -202,8 +249,7 @@ The roster is a CSV file with one row per student. Commas, semicolons and
 tabs all work, and so do files saved by Excel. The username column is the
 first of `user`, `username`, `github`, `github_name` or `githubname` (in any
 case), or the one named by `username_column` in `grader.toml`. An optional
-`grader` column assigns students to assistants for `--grader`; alternatively,
-give each assistant a roster file of their own.
+`grader` column assigns students to assistants for `--grader`.
 
 ### grader.toml
 
@@ -232,8 +278,9 @@ repo_prefix = "final-assignment"
 source_repo = "Sustainability-GIS-2023/Final-assignment"
 ```
 
-`grader` checks the whole file when it starts and lists every problem it
-finds, with the name of the setting. A deadline needs a time zone, such as
+Leave `grader` out of the shared file: each assistant names themselves with
+`--grader`. `grader` checks the whole file when it starts and lists every
+problem it finds, with the name of the setting. A deadline needs a time zone, such as
 `+02:00` in winter and `+03:00` in summer in Finland.
 
 ### Group assignments
@@ -270,9 +317,11 @@ is copied unchanged. `grader source` never pushes anything.
 
 - You no longer need a clone of `gradertools` or edits in
   `graderconfig/tools_conf.py`: the organization, roster and assignments go
-  into `grader.toml`, and the exercise is named on the command line.
-- The `student_info.csv` files of earlier courses can be used as they are,
-  including the per-assistant files.
+  into `grader.toml` in the course repository, and the exercise is named on
+  the command line.
+- The `student_info.csv` files of earlier courses can be used as they are.
+  Per-assistant roster files become one roster with a `grader` column,
+  because the course repository holds one roster for everyone.
 - Existing student clones in `submitted/<username>/<Exercise>` are picked
   up: `grader fetch` updates a clone whose remote is the student's Classroom
   repository, in its HTTPS or SSH form.
