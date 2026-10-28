@@ -9,22 +9,31 @@ to set up a course and to release assignments with nbgrader.
 ## Installation
 
 Install [Miniforge](https://github.com/conda-forge/miniforge/releases/latest)
-(it provides `conda` and `mamba`). Download your course's environment file
-from [environments/](environments/); it lists git, JupyterLab, nbgrader, the
-course's Python packages and `classroom-grader`. In the folder where you saved
-it, create the environment:
+(it provides `conda` and `mamba`). Then download your course's environment
+file: right-click the link and save the file.
+
+- Introduction to Spatial Data Analysis: [introsda.yml](https://raw.githubusercontent.com/AaltoGIS/classroom-grader/main/environments/introsda.yml)
+- Sustainability GIS: [sustainability.yml](https://raw.githubusercontent.com/AaltoGIS/classroom-grader/main/environments/sustainability.yml)
+
+The environment holds git, the GitHub CLI, JupyterLab, nbgrader, the course's
+Python packages and `classroom-grader`. Open a terminal (on Windows the
+Miniforge Prompt from the Start menu), go to the folder where you saved the
+file, for example `cd Downloads`, and create the environment. For
+Introduction to Spatial Data Analysis:
 
 ```
-mamba env create -f introsda.yml          # Introduction to Spatial Data Analysis
-mamba env create -f sustainability.yml    # Sustainability GIS
+mamba env create -f introsda.yml
 ```
 
-Activate it each time you start grading:
+For Sustainability GIS:
 
 ```
-conda activate grading           # Introduction to Spatial Data Analysis
-conda activate sustainability    # Sustainability GIS
+mamba env create -f sustainability.yml
 ```
+
+Activate the environment each time you start grading:
+`conda activate grading` (Introduction to Spatial Data Analysis) or
+`conda activate sustainability` (Sustainability GIS).
 
 To add the tool to another environment instead, run
 `pip install git+https://github.com/AaltoGIS/classroom-grader` in it. It needs
@@ -32,29 +41,80 @@ Python 3.11 or newer and git.
 
 ### GitHub access
 
-`grader` never asks for a password: git runs without prompts, several
-repositories at a time. For HTTPS, the default, give git your GitHub
-credentials in one of these ways:
+Do these steps once on each computer you grade on, in a terminal where the
+course environment is active (`conda activate grading` or
+`conda activate sustainability`).
 
-- Log in with the GitHub CLI once, `gh auth login`, and let git use it,
-  `gh auth setup-git`.
-- Set a personal access token for the current terminal:
-  `export GH_TOKEN=...` (macOS, Linux), `set GH_TOKEN=...` (Windows Command
-  Prompt) or `$env:GH_TOKEN = "..."` (PowerShell). The token is handed to git
-  only when git asks for it; it is never stored in a repository.
+1. Create a GitHub account at <https://github.com/signup> if you do not have
+   one, and send your username to the teacher. The teacher adds you to the
+   course's GitHub organization (for example `IntroSDA-2026`) with write
+   access to the students' repositories, and GitHub emails you an
+   invitation: open it and accept.
 
-With `protocol = "ssh"` in `grader.toml`, git uses your SSH key instead: load
-it into an SSH agent and connect once with `ssh -T git@github.com` to accept
-GitHub's host key, because SSH itself may still ask for a passphrase or a
-confirmation.
+2. Tell git your name and email. Your feedback commits carry them, and git
+   may refuse to commit without them:
 
-Group assignments also read the course organization's repository list from
-the GitHub API, which needs the login or token described above.
+   ```
+   git config --global user.name "Emma Virtanen"
+   git config --global user.email "emma.virtanen@aalto.fi"
+   ```
+
+3. Log in to GitHub with the GitHub CLI:
+
+   ```
+   gh auth login --hostname github.com --git-protocol https --web
+   ```
+
+   If it asks whether to authenticate Git with your GitHub credentials,
+   answer `Y`. It then shows a one-time code and opens github.com in your
+   browser when you press Enter (if the browser does not open, go to
+   <https://github.com/login/device>). Log in if asked, enter the code and
+   authorize GitHub CLI. Then let git use this login:
+
+   ```
+   gh auth setup-git
+   ```
+
+4. Check that you can see the students' repositories, with your course's
+   organization in place of `IntroSDA-2026`:
+
+   ```
+   gh repo list IntroSDA-2026 --visibility private --limit 5 --json name,viewerPermission
+   ```
+
+   It lists private repositories of the course, such as the students'
+   `exercise-1-<username>`, with your permission in each. Pushing feedback
+   needs `WRITE`, `MAINTAIN` or `ADMIN`. If the list is empty, accept the
+   invitation from step 1; if it shows `READ` or `TRIAGE`, ask the teacher
+   for write access.
+
+The login stays on your computer, so the next grading rounds need none of
+this. `grader` never asks for a password: it runs git without prompts,
+several repositories at a time, and git uses this login.
+
+Without the GitHub CLI, create a personal access token (classic) with the
+`repo` scope at <https://github.com/settings/tokens/new> and give it to
+`grader` through the `GH_TOKEN` variable, in a terminal that you use only for
+`grader`. Start JupyterLab in another terminal, because notebook code can
+read the variables of the terminal that started it. On macOS and Linux, run
+`read -s GH_TOKEN && export GH_TOKEN`, paste the token and press Enter: it is
+not shown, and it stays out of the shell's history. In the Miniforge Prompt,
+run `set GH_TOKEN=YOUR_TOKEN` with the token in place of `YOUR_TOKEN`.
+`grader` hands the token to git only when git asks for it, and never stores
+it.
+
+If the course's `grader.toml` says `protocol = "ssh"`, git uses your SSH key
+for the student repositories instead (see GitHub's guide
+[Connecting to GitHub with SSH](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)).
+Load the key into an SSH agent and connect once with `ssh -T git@github.com`
+to accept GitHub's host key; otherwise SSH asks for the passphrase or the host
+key in the middle of a run, for several repositories at a time.
 
 ## A grading round
 
 Open a terminal (on Windows the Miniforge Prompt), go to the course folder,
-which holds `grader.toml`, and activate the course environment. The examples
+which holds the course's settings file [`grader.toml`](#gradertoml) and the
+roster, and activate the course environment. The examples
 grade Exercise 3 for the assistant Emma. `--grader` overrides the `grader`
 setting in `grader.toml`; without either, every student in the roster is
 included. Name single students with `--student alice`.
@@ -146,6 +206,12 @@ case), or the one named by `username_column` in `grader.toml`. An optional
 give each assistant a roster file of their own.
 
 ### grader.toml
+
+`grader.toml` is the course's settings file, in the course folder: the
+GitHub organization, the roster file, and the assignments with their
+repository names and deadlines. `grader init` writes it, and every command
+reads it. It replaces the variables that gradertools kept in
+`graderconfig/tools_conf.py`.
 
 ```toml
 organization = "IntroSDA-2026"
