@@ -1,12 +1,15 @@
 """Checks and git queries on the student clones in ``submitted/``."""
 
 import contextlib
+import json
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from typing import Any
 
 from classroom_grader.git import GitError, run_git
 from classroom_grader.github import is_repo_url, without_credentials
 from classroom_grader.settings import Assignment, Settings
+from classroom_grader.table import printable
 
 CLASSROOM_BOT = "github-classroom[bot]"
 # Parts of git's messages for a repository that is missing or not visible: from
@@ -18,6 +21,9 @@ _MISSING_REPO = (
 )
 # Commits searched, newest first, for the newest student commit.
 _LOG_LIMIT = 1000
+NOISE_FOLDER = ".ipynb_checkpoints"
+# Larger notebooks (in bytes) are not parsed to look for metadata-only changes.
+NOTEBOOK_LIMIT = 20_000_000
 
 
 def repo_name(assignment: Assignment, name: str) -> str:
@@ -54,6 +60,11 @@ def clone_problem(settings: Settings, folder: Path, repo: str) -> str | None:
     if not is_repo_url(origin, settings.organization, repo):
         shown = repr(without_credentials(origin))
         return f"its origin is {shown}, not {settings.organization}/{repo}"
+    push_urls = run_git(["remote", "get-url", "--push", "--all", "origin"], folder)
+    for url in push_urls.splitlines():
+        if not is_repo_url(url, settings.organization, repo):
+            shown = repr(without_credentials(url))
+            return f"its push URL is {shown}, not {settings.organization}/{repo}"
     return None
 
 
@@ -73,6 +84,20 @@ def upstream(folder: Path) -> str | None:
         return None
     tracked = run_git(["rev-parse", "--symbolic-full-name", "@{u}"], folder).strip()
     return tracked if tracked.startswith("refs/remotes/origin/") else None
+
+
+def literal_pathspecs(paths: list[str] | tuple[str, ...]) -> list[str]:
+    """Return ``paths`` as pathspecs that git does not read as patterns."""
+    return [f":(literal){path}" for path in paths]
+
+
+def ahead_behind(folder: Path, tracked: str) -> tuple[int, int]:
+    """Return how many commits HEAD has that ``tracked`` lacks, and the reverse."""
+    counts = run_git(
+        ["rev-list", "--left-right", "--count", f"HEAD...{tracked}"], folder
+    )
+    ahead, behind = (int(count) for count in counts.split())
+    return ahead, behind
 
 
 def late_commit(
@@ -110,3 +135,94 @@ def grader_identity(root: Path) -> set[str]:
 def format_time(moment: datetime, deadline: datetime) -> str:
     """Format ``moment`` in the deadline's time zone, to the minute."""
     return moment.astimezone(deadline.tzinfo).isoformat(sep=" ", timespec="minutes")
+
+
+def local_changes(
+    folder: Path, feedback_files: tuple[str, ...]
+) -> tuple[bool, tuple[str, ...]]:
+    """Return whether a feedback file changed, and the other changed files.
+
+    A feedback file counts as changed also when it is new but ignored by the
+    repository's .gitignore. Files in ``.ipynb_checkpoints`` folders are left
+    out, and a notebook whose changes are all in metadata is marked "(metadata
+    only)". A rename counts as a change of both paths.
+    """
+    feedback = set(feedback_files)
+    entries = iter(
+        run_git(
+            ["status", "--porcelain=v1", "-z", "--untracked-files=all"], folder
+        ).split("\0")
+    )
+    ignored = run_git(
+        ["ls-files", "--others", "--ignored", "--exclude-standard", "--"]
+        + literal_pathspecs(sorted(feedback)),
+        folder,
+    )
+    feedback_changed = bool(ignored.strip())
+    other: list[str] = []
+    for entry in entries:
+        if not entry:
+            continue
+        code, path = entry[:2], entry[3:]
+        paths = [path]
+        if "R" in code or "C" in code:  # the next entry is the path moved or copied
+            source = next(entries, "")
+            if "R" in code:
+                paths.append(source)
+        for changed in paths:
+            if changed in feedback:
+                feedback_changed = True
+            elif NOISE_FOLDER in PurePosixPath(changed).parts:
+                continue
+            elif changed.endswith(".ipynb") and _metadata_only(folder, changed, code):
+                other.append(f"{printable(changed)} (metadata only)")
+            else:
+                other.append(printable(changed))
+    return feedback_changed, tuple(other)
+
+
+def _metadata_only(folder: Path, path: str, code: str) -> bool:
+    """Tell whether notebook ``path`` differs from HEAD only in metadata.
+
+    ``code`` is the porcelain status: the staged version is compared when the
+    first letter is M, the working copy when the second is. A version larger
+    than ``NOTEBOOK_LIMIT`` makes the answer no.
+    """
+    if code not in (" M", "M ", "MM"):
+        return False
+    try:
+        objects = [f"HEAD:{path}"] + ([f":0:{path}"] if code[0] == "M" else [])
+        sizes = [int(run_git(["cat-file", "-s", name], folder)) for name in objects]
+        if max(sizes) > NOTEBOOK_LIMIT:
+            return False
+        texts = [run_git(["show", name], folder) for name in objects]
+        if code[1] == "M":
+            with (folder / path).open("rb") as file:
+                data = file.read(NOTEBOOK_LIMIT + 1)
+            if len(data) > NOTEBOOK_LIMIT:
+                return False
+            texts.append(data.decode("utf-8"))
+        committed, *changed = (_comparable(text) for text in texts)
+        return all(version == committed for version in changed)
+    except (GitError, OSError, ValueError, RecursionError):
+        return False
+
+
+def _comparable(text: str) -> str:
+    """Return notebook JSON without metadata, as text that keeps JSON types apart."""
+    return json.dumps(_without_metadata(json.loads(text)), sort_keys=True)
+
+
+def _without_metadata(notebook: Any) -> Any:
+    """Return a notebook without its own metadata and its cells' metadata."""
+    if not isinstance(notebook, dict):
+        return notebook
+    rest = {key: value for key, value in notebook.items() if key != "metadata"}
+    if isinstance(rest.get("cells"), list):
+        rest["cells"] = [
+            {key: value for key, value in cell.items() if key != "metadata"}
+            if isinstance(cell, dict)
+            else cell
+            for cell in rest["cells"]
+        ]
+    return rest

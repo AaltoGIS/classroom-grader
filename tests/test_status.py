@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from classroom_grader import cli, status
+from classroom_grader import cli, repo
 from classroom_grader.table import format_table
 
 SETTINGS = """\
@@ -146,7 +146,7 @@ def test_status_exit_code_is_0_when_no_feedback_is_waiting(graded_course):
 def test_notebooks_over_the_size_limit_are_not_parsed(
     graded_course, monkeypatch, capsys
 ):
-    monkeypatch.setattr(status, "NOTEBOOK_LIMIT", 10)
+    monkeypatch.setattr(repo, "NOTEBOOK_LIMIT", 10)
     capsys.readouterr()
     options = ["--student", "hank", "--no-fetch"]
     cli.main(["status", "Exercise-1", "--course", str(graded_course), *options])
