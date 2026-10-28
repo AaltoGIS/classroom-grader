@@ -6,6 +6,7 @@ channels:
 dependencies:
   - python=3.14
   - git
+  - gh
   - jupyterlab
   - jupyterlab-git
   - nbgrader
