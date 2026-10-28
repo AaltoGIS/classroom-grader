@@ -2,8 +2,10 @@
 
 import argparse
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
+from classroom_grader import GraderError
 from classroom_grader.roster import Student, read_roster, select_students
 from classroom_grader.settings import (
     Assignment,
@@ -48,6 +50,22 @@ def open_course(args: argparse.Namespace) -> tuple[Settings, list[Student]]:
         )
     grader = args.grader or settings.grader
     return settings, select_students(roster.students, grader, args.student or ())
+
+
+def select_assignments(settings: Settings, names: Sequence[str]) -> list[Assignment]:
+    """Return the named assignments, matched case-insensitively, without repeats."""
+    by_name = {name.casefold(): a for name, a in settings.assignments.items()}
+    unknown = [name for name in names if name.casefold() not in by_name]
+    if unknown:
+        known = ", ".join(settings.assignments) or "none"
+        raise GraderError(
+            f"not in grader.toml: {', '.join(unknown)}; its assignments: {known}"
+        )
+    return list(
+        {
+            by_name[name.casefold()].name: by_name[name.casefold()] for name in names
+        }.values()
+    )
 
 
 def submission_folder(settings: Settings, name: str, assignment: Assignment) -> Path:

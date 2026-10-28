@@ -5,7 +5,7 @@ import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from classroom_grader import GraderError, __version__, init, students
+from classroom_grader import GraderError, __version__, fetch, init, students
 
 
 @dataclass(frozen=True)
@@ -21,6 +21,7 @@ class Command:
 COMMANDS: tuple[Command, ...] = (
     Command("init", init.HELP, init.add_arguments, init.run),
     Command("students", students.HELP, students.add_arguments, students.run),
+    Command("fetch", fetch.HELP, fetch.add_arguments, fetch.run),
 )
 
 
