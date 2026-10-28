@@ -43,7 +43,7 @@ def test_given_settings_are_kept(course):
         + """\
 username_column = "github"
 grader = "Emma"
-feedback_files = ["README.md", "feedback/notes.md"]
+feedback_files = ["./README.md", 'feedback\\notes.md']
 protocol = "ssh"
 
 [assignments.Final-assignment]
@@ -84,7 +84,7 @@ deadline = 2026-11-13T23:59:00+02:00
             BASE
             + 'grader = ""\nprotocol = "git"\n'
             + 'feedback_files = ["../a.md", 3, "C:a.md", \'\\a.md\', "b/c.md",\n'
-            + '  "x\\u001b"]\n',
+            + '  "x\\u001b", "."]\n',
             [
                 "grader: must be non-empty printable text",
                 "feedback_files: '../a.md' is not a path inside the repository",
@@ -92,6 +92,7 @@ deadline = 2026-11-13T23:59:00+02:00
                 "feedback_files: 'C:a.md' is not a path inside the repository",
                 "feedback_files: '\\\\a.md' is not a path inside the repository",
                 "feedback_files: 'x\\x1b' is not a path inside the repository",
+                "feedback_files: '.' is not a path inside the repository",
                 "protocol: must be one of https, ssh",
             ],
         ),

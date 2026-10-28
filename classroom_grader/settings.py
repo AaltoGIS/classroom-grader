@@ -9,6 +9,7 @@ from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from classroom_grader import GraderError
+from classroom_grader.table import printable
 
 SETTINGS_FILE = "grader.toml"
 DEFAULT_FEEDBACK_FILES = ("README.md",)
@@ -102,7 +103,8 @@ def parse_settings(
     Raises ``SettingsError`` listing every problem found, not only the first.
     """
     problems = [
-        f"{_shown(key)}: unknown setting" for key in sorted(data.keys() - SETTING_KEYS)
+        f"{printable(key)}: unknown setting"
+        for key in sorted(data.keys() - SETTING_KEYS)
     ]
     organization = _string(data, "organization", problems, required=True)
     if organization is not None and not _GITHUB_OWNER.fullmatch(organization):
@@ -149,24 +151,33 @@ def _string(
 
 
 def _feedback_files(value: Any, problems: list[str]) -> tuple[str, ...]:
-    """Return the feedback file paths, which must be relative to the repository."""
+    """Return the feedback file paths in git's form: relative, with forward slashes.
+
+    ``./README.md`` becomes ``README.md`` and ``feedback\\notes.md`` becomes
+    ``feedback/notes.md``; a path that leaves the repository is a problem.
+    """
     if value is None:
         return DEFAULT_FEEDBACK_FILES
     if not isinstance(value, list) or not value:
         problems.append("feedback_files: must be a list of file paths")
         return ()
+    paths = []
     for path in value:
+        parts = PureWindowsPath(path).parts if isinstance(path, str) else ()
         if (
             not isinstance(path, str)
             or not path.strip()
             or not path.isprintable()
             or PureWindowsPath(path).anchor
-            or ".." in PureWindowsPath(path).parts
+            or ".." in parts
+            or not [part for part in parts if part != "."]
         ):
             problems.append(
                 f"feedback_files: {path!r} is not a path inside the repository"
             )
-    return tuple(value)
+        else:
+            paths.append("/".join(part for part in parts if part != "."))
+    return tuple(paths)
 
 
 def _assignments(
@@ -179,7 +190,7 @@ def _assignments(
     assignments = {}
     folded: dict[tuple[str, str], str] = {}
     for name, entry in table.items():
-        label = f"assignments.{_shown(name)}"
+        label = f"assignments.{printable(name)}"
         if (reason := _folder_name_problem(name)) is not None:
             problems.append(f"{label}: {reason}")
         # Windows compares folder names by uppercase, macOS by case folding.
@@ -188,13 +199,13 @@ def _assignments(
         for other in sorted({folded.setdefault(key, name) for key in keys} - {name}):
             problems.append(
                 f"{label}: Windows or macOS treat it as the same folder name as "
-                f"assignments.{_shown(other)}"
+                f"assignments.{printable(other)}"
             )
         if not isinstance(entry, dict):
             problems.append(f"{label}: must be a table")
             continue
         problems.extend(
-            f"{label}.{_shown(key)}: unknown setting"
+            f"{label}.{printable(key)}: unknown setting"
             for key in sorted(entry.keys() - ASSIGNMENT_KEYS)
         )
         kind = _string(entry, "type", problems, f"{label}.") or "individual"
@@ -233,11 +244,6 @@ def _invalid(label: str, key: str, value: str, given: str | None, kind: str) -> 
     if given:
         return f"{label}.{key}: {value!r} is not {kind}"
     return f"{label}.{key}: the default {value!r} is not {kind}; set {key}"
-
-
-def _shown(text: str) -> str:
-    """Return ``text`` for a problem line, quoted when it has unprintable characters."""
-    return text if text.isprintable() else repr(text)
 
 
 def _folder_name_problem(name: str) -> str | None:
