@@ -1,4 +1,4 @@
-"""``grader init``: write ``grader.toml`` and a plain ``nbgrader_config.py``."""
+"""``grader init``: write ``grader.toml``, ``nbgrader_config.py`` and ``.gitignore``."""
 
 import argparse
 import json
@@ -9,8 +9,18 @@ from pathlib import Path
 from classroom_grader import GraderError
 from classroom_grader.settings import SETTINGS_FILE, Settings, parse_settings
 
-HELP = "Write grader.toml and nbgrader_config.py for a course."
+HELP = "Write grader.toml, nbgrader_config.py and .gitignore for a course."
 DEFAULT_ROSTER = "student_info.csv"
+GITIGNORE = ".gitignore"
+# Filled on each computer by grader and nbgrader; never part of the course repository.
+GITIGNORE_LINES = (
+    "submitted/",
+    "source/",
+    "release/",
+    "autograded/",
+    "feedback/",
+    "gradebook.db",
+)
 NBGRADER_CONFIG = "nbgrader_config.py"
 NBGRADER_CONFIG_TEXT = '''\
 """nbgrader settings for the course, written by grader init."""
@@ -52,7 +62,8 @@ def run(args: argparse.Namespace) -> int:
     """Write the course settings, asking for the values not given as options.
 
     An existing ``nbgrader_config.py`` is replaced only after confirmation and
-    kept as ``nbgrader_config.py.bak``.
+    kept as ``nbgrader_config.py.bak``; an existing ``.gitignore`` gets the
+    lines it lacks.
     """
     root = args.course.resolve()
     if not root.is_dir():
@@ -90,6 +101,10 @@ def run(args: argparse.Namespace) -> int:
     )
     if replace and os.path.lexists(backup):
         raise GraderError(f"{backup} exists already; move it away first")
+    gitignore = root / GITIGNORE
+    if os.path.lexists(gitignore) and not gitignore.is_file():
+        raise GraderError(f"{gitignore} is not a file; move it away first")
+    old_gitignore = gitignore.read_bytes() if gitignore.is_file() else None
 
     _write_new(settings_path, _settings_text(settings, roster).encode())
     print(f"Wrote {settings_path}")
@@ -102,7 +117,29 @@ def run(args: argparse.Namespace) -> int:
         print(f"Wrote {config_path}")
     elif old_text != config_text:
         print(f"Left {config_path} unchanged")
+    _update_gitignore(gitignore, old_gitignore)
     return 0
+
+
+def _update_gitignore(path: Path, old: bytes | None) -> None:
+    """Write ``.gitignore``, or append the ``GITIGNORE_LINES`` that ``old`` lacks."""
+    present = set()
+    if old is not None:
+        present = {line.strip() for line in old.decode("utf-8", "replace").splitlines()}
+    missing = [line for line in GITIGNORE_LINES if line not in present]
+    if not missing:
+        print(f"Left {path} unchanged")
+        return
+    text = "\n".join(missing) + "\n"
+    if old is None:
+        _write_new(path, text.encode())
+        print(f"Wrote {path}")
+        return
+    if old and not old.endswith(b"\n"):
+        text = "\n" + text
+    with path.open("ab") as file:
+        file.write(text.encode())
+    print(f"Added {', '.join(missing)} to {path}")
 
 
 def _write_new(path: Path, content: bytes) -> None:
