@@ -1,0 +1,29 @@
+name: grading
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.14
+  - git
+  - jupyterlab
+  - jupyterlab-git
+  - nbgrader
+  - geopandas
+  - pysal
+  - contextily
+  - xarray
+  - xarray-spatial
+  - networkx
+  - osmnx
+  - pointpats
+  - pyinterpolate
+  - pykrige
+  - rioxarray
+  - seaborn
+  - pandas
+  - nose
+  - jinja2
+  - pip
+  - pip:
+      - git+https://github.com/AaltoGIS/classroom-grader
