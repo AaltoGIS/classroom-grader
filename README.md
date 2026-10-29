@@ -100,19 +100,35 @@ only if you cannot use the GitHub CLI or your course uses SSH
 
 ### The course folder
 
-Each course keeps its settings file [`grader.toml`](#gradertoml), the roster
-and `nbgrader_config.py` in a private repository in its GitHub organization,
-for example `IntroSDA-2026/grading`; the teacher tells you its name. Your
-clone of it is your course folder. Clone it once, after the steps above, in
-the folder where you want to keep your grading (for example `Documents`):
+You do all your grading in one folder on your computer, the course folder.
+The teacher keeps the files that `grader` needs in a private GitHub
+repository: the course settings ([`grader.toml`](#gradertoml)), the list of
+students (the roster) and the settings for nbgrader. Your course folder is a
+copy of that repository. You make the copy once, after the GitHub access
+steps above.
 
-```
-git clone https://github.com/IntroSDA-2026/grading IntroSDA-2026
-```
+1. Ask the teacher for the name of the course repository, for example
+   `IntroSDA-2026/grading`.
 
-This creates the course folder `IntroSDA-2026`. The student repositories and
-nbgrader's files go into it too (`submitted/`, `source/`, `release/` and so
-on); the course repository's `.gitignore` keeps them out of it.
+2. In a terminal with the course environment active, go to the folder where
+   you want to keep your grading, for example `cd Documents`.
+
+3. Copy the repository there (git calls this cloning), with your course's
+   repository name in the address:
+
+   ```
+   git clone https://github.com/IntroSDA-2026/grading IntroSDA-2026
+   ```
+
+   The last word, `IntroSDA-2026`, is the name of the new folder. You can
+   choose a different one.
+
+You now have the folder `IntroSDA-2026`. Each grading round starts by going
+into it (see [A grading round](#a-grading-round)).
+
+As you grade, `grader` and nbgrader add more folders here, such as
+`submitted/` with the students' work. Git leaves these out of the course
+repository, so they never get committed there by mistake.
 
 ## A grading round
 
