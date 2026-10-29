@@ -3,8 +3,10 @@
 `grader` is a command-line tool for course assistants who grade GitHub
 Classroom assignments with nbgrader. It collects the students' repositories
 into the folder layout nbgrader expects, shows whether the grading feedback
-has reached GitHub, and commits and pushes the feedback. Teachers also use it
-to set up a course and to release assignments with nbgrader.
+has reached GitHub, and commits and pushes the feedback.
+
+This guide is for course assistants. Teachers set up a course as described
+in [Setting up a course](docs/setting-up-a-course.md).
 
 ## Installation
 
@@ -102,8 +104,8 @@ only if you cannot use the GitHub CLI or your course uses SSH
 
 You do all your grading in one folder on your computer, the course folder.
 The teacher keeps the files that `grader` needs in a private GitHub
-repository: the course settings ([`grader.toml`](#gradertoml)), the list of
-students (the roster) and the settings for nbgrader. Your course folder is a
+repository: the course settings (`grader.toml`), the list of students (the
+roster) and the settings for nbgrader. Your course folder is a
 copy of that repository. You make the copy once, after the GitHub access
 steps above.
 
@@ -205,140 +207,20 @@ it, every student in the roster is included. Name single students with
    the student changed the same lines as you; `grader push` leaves your commit
    in the clone, and you resolve it there with `git pull --rebase`.
 
+In a group assignment each team has one repository, and `grader` handles the
+teams the way it handles students: a team's repository goes into
+`submitted/<team>/<Assignment>`, and `--student` also takes team names.
+`--grader` does not apply, so every team is included unless you name some
+with `--student`.
+
 Every command takes `--course PATH` when you run it outside the course
 folder, and `--jobs N` sets how many repositories are handled at the same
 time (default 8).
-
-## Setting up a course
-
-The teacher does this once per course.
-
-1. Create a private repository for the course settings in the course's
-   organization, for example `IntroSDA-2026/grading`: on
-   <https://github.com/new>, choose the organization as the owner and
-   *Private* as the visibility. The assistants need read access to it.
-
-2. Clone it as in [The course folder](#the-course-folder) and copy the
-   roster into the clone.
-
-3. In the clone, run:
-
-   ```
-   grader init --organization IntroSDA-2026 --roster student_info.csv --assignment Exercise-1 --assignment Exercise-2
-   ```
-
-   Values left out are asked for. `grader init` writes `grader.toml`, a plain
-   `nbgrader_config.py`, and a `.gitignore` that keeps the folders grader and
-   nbgrader fill on each computer (`submitted/`, `source/`, `release/`,
-   `autograded/`, `feedback/` and `gradebook.db`) out of the repository. An
-   existing `nbgrader_config.py` is replaced only after you confirm, and the
-   old one is kept as `nbgrader_config.py.bak`; an existing `.gitignore` gets
-   the lines it lacks.
-
-4. Add deadlines and group assignments to `grader.toml` (see below), then
-   share the files:
-
-   ```
-   git add grader.toml nbgrader_config.py .gitignore student_info.csv
-   git commit -m "Add the course settings"
-   git push
-   ```
-
-When you change `grader.toml` or the roster later, commit and push again; the
-assistants get the changes with `git pull`.
-
-### The roster
-
-The roster is a CSV file with one row per student. Commas, semicolons and
-tabs all work, and so do files saved by Excel. The username column is the
-first of `user`, `username`, `github`, `github_name` or `githubname` (in any
-case), or the one named by `username_column` in `grader.toml`. An optional
-`grader` column assigns students to assistants for `--grader`.
-
-### grader.toml
-
-`grader.toml` is the course's settings file, in the course folder: the
-GitHub organization, the roster file, and the assignments with their
-repository names and deadlines. `grader init` writes it, and every command
-reads it. It replaces the variables that gradertools kept in
-`graderconfig/tools_conf.py`.
-
-```toml
-organization = "IntroSDA-2026"
-roster = "student_info.csv"
-# username_column = "user"   # found automatically when left out
-# grader = "Emma"            # default for --grader
-feedback_files = ["README.md"]
-# protocol = "ssh"           # for new clones; the default is "https"
-
-[assignments.Exercise-3]       # the name of the folders under submitted/ and source/
-# repo_prefix = "exercise-3"   # default: the name in lower case
-# source_repo = "IntroSDA-2026/Exercise-3-grading"   # default: <organization>/<name>-grading
-deadline = 2026-11-13T23:59:00+02:00
-
-[assignments.Final-assignment]
-type = "group"
-repo_prefix = "final-assignment"
-source_repo = "Sustainability-GIS-2023/Final-assignment"
-```
-
-Leave `grader` out of the shared file: each assistant names themselves with
-`--grader`. `grader` checks the whole file when it starts and lists every
-problem it finds, with the name of the setting. A deadline needs a time zone, such as
-`+02:00` in winter and `+03:00` in summer in Finland.
-
-### Group assignments
-
-For an assignment with `type = "group"`, the teams are the organization's
-repositories named `<repo_prefix>-<team>`, except the template repository
-named just `<repo_prefix>`. `fetch`, `status` and `push` handle each team like
-a student, in `submitted/<team>/<Assignment>`, and `--student` also selects
-teams by name. A team named like a student in the roster is refused, because
-both would use the same folder.
-
-### Releasing an assignment
-
-```
-grader source Exercise-3
-```
-
-This clones the teacher's repository (`source_repo`) into
-`source/Exercise-3`, or updates it, and then runs
-`nbgrader db assignment add` and `nbgrader generate_assignment`, which writes
-the student version into `release/Exercise-3`. nbgrader leaves an existing
-release alone unless you add `--force`. A notebook without nbgrader metadata
-is copied unchanged. `grader source` never pushes anything.
 
 ## Windows notes
 
 - Run the commands in the Miniforge Prompt, after `conda activate`.
 - Paths may use backslashes: `grader fetch Exercise-3 --course C:\Courses\IntroSDA-2026`.
-- Folder names that Windows cannot have (such as `CON`, or names ending in a
-  dot) are refused in `grader.toml`, and two assignment names that differ only
-  in case are refused because they would share a folder.
-
-## Moving a course from gradertools
-
-- You no longer need a clone of `gradertools` or edits in
-  `graderconfig/tools_conf.py`: the organization, roster and assignments go
-  into `grader.toml` in the course repository, and the exercise is named on
-  the command line.
-- The `student_info.csv` files of earlier courses can be used as they are.
-  Per-assistant roster files become one roster with a `grader` column,
-  because the course repository holds one roster for everyone.
-- Existing student clones in `submitted/<username>/<Exercise>` are picked
-  up: `grader fetch` updates a clone whose remote is the student's Classroom
-  repository, in its HTTPS or SSH form.
-- Clones of group repositories made by gradertools (all under
-  `submitted/final-assignment/`) are not used: `grader fetch` clones each team
-  into `submitted/<team>/<Assignment>`. Push or copy any feedback from the
-  old clones before you switch.
-- Replace the course's `nbgrader_config.py`, which imported gradertools, with
-  the plain one from `grader init`.
-- `pull_student_repos.py` is now `grader fetch`, `push_feedback.py` is
-  `grader push`, and `pull_exercise_repos.py` is `grader source`. Generating
-  HTML feedback, copying scores into `README.md` and the Slack and PDF
-  settings are gone.
 
 ## Development
 
