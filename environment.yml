@@ -30,7 +30,6 @@ dependencies:
   - momepy
   - movingpandas
   - networkx
-  - nose
   - openjdk
   - openpyxl
   - osmnx
@@ -48,7 +47,6 @@ dependencies:
   - rioxarray
   - scikit-image
   - scikit-learn
-  - scikit-mobility
   - scipy
   - seaborn
   - segregation
