@@ -32,7 +32,7 @@ mamba env create -f sustainability.yml
 ```
 
 Activate the environment each time you start grading:
-`conda activate grading` (Introduction to Spatial Data Analysis) or
+`conda activate isda` (Introduction to Spatial Data Analysis) or
 `conda activate sustainability` (Sustainability GIS).
 
 To add the tool to another environment instead, run
@@ -42,7 +42,7 @@ Python 3.11 or newer and git.
 ### GitHub access
 
 Do these steps once on each computer you grade on, in a terminal where the
-course environment is active (`conda activate grading` or
+course environment is active (`conda activate isda` or
 `conda activate sustainability`).
 
 1. Create a GitHub account at <https://github.com/signup> if you do not have
