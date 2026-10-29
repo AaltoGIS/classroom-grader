@@ -8,6 +8,10 @@ has reached GitHub, and commits and pushes the feedback.
 This guide is for course assistants. Teachers set up a course as described
 in [Setting up a course](docs/setting-up-a-course.md).
 
+![The grading workflow. One-time setup: install the environment, connect GitHub access, clone the course folder. The grading loop, repeated for each exercise: start and sync, check your students, fetch submissions, grade notebooks, review grading status, preview and publish the feedback.](img/classroom-grader-workflow.png)
+
+The sections below go through these steps one by one.
+
 ## Installation
 
 Install [Miniforge](https://github.com/conda-forge/miniforge/releases/latest)
