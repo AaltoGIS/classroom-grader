@@ -15,31 +15,25 @@ The sections below go through these steps one by one.
 ## Installation
 
 Install [Miniforge](https://github.com/conda-forge/miniforge/releases/latest)
-(it provides `conda` and `mamba`). Then download your course's environment
-file: right-click the link and save the file.
+(it provides `conda` and `mamba`). Then download the environment file
+[environment.yml](https://raw.githubusercontent.com/AaltoGIS/classroom-grader/main/environment.yml):
+right-click the link and save the file.
 
-- Introduction to Spatial Data Analysis: [introsda.yml](https://raw.githubusercontent.com/AaltoGIS/classroom-grader/main/environments/introsda.yml)
-- Sustainability GIS: [sustainability.yml](https://raw.githubusercontent.com/AaltoGIS/classroom-grader/main/environments/sustainability.yml)
-
-The environment holds git, the GitHub CLI, JupyterLab, nbgrader, the course's
-Python packages and `classroom-grader`. Open a terminal (on Windows the
-Miniforge Prompt from the Start menu), go to the folder where you saved the
-file, for example `cd Downloads`, and create the environment. For
-Introduction to Spatial Data Analysis:
+The environment holds git, the GitHub CLI, JupyterLab, nbgrader, the Python
+packages of Introduction to Spatial Data Analysis and Sustainability GIS, and
+`classroom-grader`. Open a terminal (on Windows the Miniforge Prompt from the
+Start menu), go to the folder where you saved the file, for example
+`cd Downloads`, and create the environment:
 
 ```
-mamba env create -f introsda.yml
+mamba env create -f environment.yml
 ```
 
-For Sustainability GIS:
+Activate it each time you start grading:
 
 ```
-mamba env create -f sustainability.yml
+conda activate grader
 ```
-
-Activate the environment each time you start grading:
-`conda activate isda` (Introduction to Spatial Data Analysis) or
-`conda activate sustainability` (Sustainability GIS).
 
 To add the tool to another environment instead, run
 `pip install git+https://github.com/AaltoGIS/classroom-grader` in it. It needs
@@ -48,8 +42,7 @@ Python 3.11 or newer and git.
 ### GitHub access
 
 Do these steps once on each computer you grade on, in a terminal where the
-course environment is active (`conda activate isda` or
-`conda activate sustainability`).
+grading environment is active (`conda activate grader`).
 
 1. Create a GitHub account at <https://github.com/signup> if you do not have
    one, and send your username to the teacher. The teacher adds you to the
@@ -116,7 +109,7 @@ steps above.
 1. Ask the teacher for the name of the course repository, for example
    `IntroSDA-2026/grading`.
 
-2. In a terminal with the course environment active, go to the folder where
+2. In a terminal with the grading environment active, go to the folder where
    you want to keep your grading, for example `cd Documents`.
 
 3. Copy the repository there (git calls this cloning), with your course's
