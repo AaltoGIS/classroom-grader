@@ -1,4 +1,4 @@
-name: grading
+name: isda
 
 channels:
   - conda-forge
