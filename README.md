@@ -88,27 +88,15 @@ course environment is active (`conda activate grading` or
    invitation from step 1; if it shows `READ` or `TRIAGE`, ask the teacher
    for write access.
 
-The login stays on your computer, so the next grading rounds need none of
-this. `grader` never asks for a password: it runs git without prompts,
-several repositories at a time, and git uses this login.
+When step 4 lists the course repositories with `WRITE` or higher, GitHub
+access is ready. The login stays on your computer, so the next grading rounds
+need none of this. `grader` never asks for a password: it runs git without
+prompts, several repositories at a time, and git uses this login.
 
-Without the GitHub CLI, create a personal access token (classic) with the
-`repo` scope at <https://github.com/settings/tokens/new> and give it to
-`grader` through the `GH_TOKEN` variable, in a terminal that you use only for
-`grader`. Start JupyterLab in another terminal, because notebook code can
-read the variables of the terminal that started it. On macOS and Linux, run
-`read -s GH_TOKEN && export GH_TOKEN`, paste the token and press Enter: it is
-not shown, and it stays out of the shell's history. In the Miniforge Prompt,
-run `set GH_TOKEN=YOUR_TOKEN` with the token in place of `YOUR_TOKEN`.
-`grader` hands the token to git only when git asks for it, and never stores
-it.
-
-If the course's `grader.toml` says `protocol = "ssh"`, git uses your SSH key
-for the student repositories instead (see GitHub's guide
-[Connecting to GitHub with SSH](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)).
-Load the key into an SSH agent and connect once with `ssh -T git@github.com`
-to accept GitHub's host key; otherwise SSH asks for the passphrase or the host
-key in the middle of a run, for several repositories at a time.
+[Other ways to access GitHub](docs/github-access-alternatives.md) describes
+a personal access token instead of the GitHub CLI, and SSH keys. You need it
+only if you cannot use the GitHub CLI or your course uses SSH
+(`protocol = "ssh"` in `grader.toml`); with the steps above working, skip it.
 
 ### The course folder
 
