@@ -24,4 +24,5 @@ AaltoGIS/gradertools.
 - Group assignments: the teams' repositories are found through the GitHub
   API and handled like students.
 - Grading environments for Introduction to Spatial Data Analysis and
-  Sustainability GIS, and a guide for course assistants in the README.
+  Sustainability GIS, a guide for course assistants in the README, and a
+  guide for teachers on setting up a course.
