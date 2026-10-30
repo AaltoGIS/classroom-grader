@@ -41,7 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
     """Return the ``grader`` parser with one subparser per entry in ``COMMANDS``."""
     parser = argparse.ArgumentParser(
         prog="grader",
-        description="Collect GitHub Classroom submissions and push grading feedback.",
+        description="Collect Classroom 50 submissions and push grading feedback.",
     )
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "classroom-grader"
 dynamic = ["version"]
-description = "Collect GitHub Classroom submissions into an nbgrader folder layout and push grading feedback"
+description = "Collect Classroom 50 submissions into an nbgrader folder layout and push grading feedback"
 readme = "README.md"
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
