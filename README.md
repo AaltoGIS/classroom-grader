@@ -1,7 +1,7 @@
 # classroom-grader
 
-`grader` is a command-line tool for course assistants who grade GitHub
-Classroom assignments with nbgrader. It collects the students' repositories
+`grader` is a command-line tool for course assistants who grade Classroom 50
+assignments with nbgrader. It collects the students' repositories
 into the folder layout nbgrader expects, shows whether the grading feedback
 has reached GitHub, and commits and pushes the feedback.
 
@@ -45,10 +45,9 @@ Do these steps once on each computer you grade on, in a terminal where the
 grading environment is active (`conda activate grader`).
 
 1. Create a GitHub account at <https://github.com/signup> if you do not have
-   one, and send your username to the teacher. The teacher adds you to the
-   course's GitHub organization (for example `IntroSDA-2026`) with write
-   access to the students' repositories, and GitHub emails you an
-   invitation: open it and accept.
+   one, and send your username to the teacher. The teacher adds you as a TA
+   of the course in Classroom 50, and GitHub emails you an invitation to the
+   course's organization (for example `IntroSDA-2026`): open it and accept.
 
 2. Tell git your name and email. Your feedback commits carry them, and git
    may refuse to commit without them:
@@ -82,10 +81,12 @@ grading environment is active (`conda activate grader`).
    ```
 
    It lists private repositories of the course, such as the students'
-   `exercise-1-<username>`, with your permission in each. Pushing feedback
-   needs `WRITE`, `MAINTAIN` or `ADMIN`. If the list is empty, accept the
-   invitation from step 1; if it shows `READ` or `TRIAGE`, ask the teacher
-   for write access.
+   `introsda-exercise-1-<username>`, with your permission in each. Pushing
+   feedback needs `WRITE`, `MAINTAIN` or `ADMIN`. If the list is empty,
+   accept the invitation from step 1; if it shows `READ` or `TRIAGE`, ask
+   the teacher for write access. Classroom 50 gives TAs access to the
+   students' repositories each time the teacher collects the scores, so
+   before the first collection the list can be empty for that reason too.
 
 When step 4 lists the course repositories with `WRITE` or higher, GitHub
 access is ready. The login stays on your computer, so the next grading rounds
@@ -156,16 +157,17 @@ it, every student in the roster is included. Name single students with
    grader fetch Exercise-3 --grader Emma
    ```
 
-   Each student's repository `exercise-3-<username>` is cloned into
+   Each student's repository, which Classroom 50 names
+   `<classroom>-exercise-3-<username>`, is cloned into
    `submitted/<username>/Exercise-3`, or updated if it is there already. The
    repositories on GitHub keep their names. At the end, `grader fetch` lists
    the students without a repository (they have not accepted the assignment,
-   or you have no access), the clones it only fetched without updating them
+   or you have no access yet: Classroom 50 gives it when the teacher collects
+   the scores), the clones it only fetched without updating them
    because you have changed them locally, and, when the assignment has a
    deadline, students whose newest commit is later. Commits made with your git
-   identity (`git config user.name` and `user.email`) and by GitHub Classroom
-   do not count. Commit times come from the students' computers, so take them as
-   a hint.
+   identity (`git config user.name` and `user.email`) do not count. Commit
+   times come from the students' computers, so take them as a hint.
 
 3. Grade: run `jupyter lab` in the course folder, open the notebooks under
    `submitted/`, and write the points and feedback into each student's
@@ -205,8 +207,10 @@ it, every student in the roster is included. Name single students with
    in the clone, and you resolve it there with `git pull --rebase`.
 
 In a group assignment each team has one repository, and `grader` handles the
-teams the way it handles students: a team's repository goes into
-`submitted/<team>/<Assignment>`, and `--student` also takes team names.
+teams the way it handles students. Classroom 50 numbers the teams: the
+repository `<classroom>-final-assignment-group-1` goes into
+`submitted/group-1/Final-assignment`, and `--student` also takes team names
+such as `group-1`.
 `--grader` does not apply, so every team is included unless you name some
 with `--student`.
 
