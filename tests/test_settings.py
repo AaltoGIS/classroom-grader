@@ -23,7 +23,11 @@ def test_left_out_settings_get_defaults(course):
     write_settings(course, BASE + "[assignments.Exercise-3]\n")
     settings = load_settings(course)
     assert settings.roster == course / "student_info.csv"
-    assert (settings.username_column, settings.grader) == (None, None)
+    assert (settings.classroom, settings.username_column, settings.grader) == (
+        None,
+        None,
+        None,
+    )
     assert (settings.feedback_files, settings.protocol) == (("README.md",), "https")
     assert settings.assignments == {
         "Exercise-3": Assignment(
@@ -41,10 +45,13 @@ def test_given_settings_are_kept(course):
         course,
         BASE
         + """\
+classroom = "IntroSDA"
 username_column = "github"
 grader = "Emma"
 feedback_files = ["./README.md", 'feedback\\notes.md']
 protocol = "ssh"
+
+[assignments.Exercise-3]
 
 [assignments.Final-assignment]
 type = "group"
@@ -54,9 +61,11 @@ deadline = 2026-11-13T23:59:00+02:00
 """,
     )
     settings = load_settings(course)
+    assert settings.classroom == "IntroSDA"
     assert (settings.username_column, settings.grader) == ("github", "Emma")
     assert settings.feedback_files == ("README.md", "feedback/notes.md")
     assert settings.protocol == "ssh"
+    assert settings.assignments["Exercise-3"].repo_prefix == "introsda-exercise-3"
     assert settings.assignments["Final-assignment"] == Assignment(
         "Final-assignment",
         "group",
@@ -97,8 +106,11 @@ deadline = 2026-11-13T23:59:00+02:00
             ],
         ),
         (
-            BASE + "[assignments.CON]\n[assignments.ex-1]\n[assignments.Ex-1]\n",
+            BASE
+            + 'classroom = "Intro SDA"\n'
+            + "[assignments.CON]\n[assignments.ex-1]\n[assignments.Ex-1]\n",
             [
+                "classroom: 'Intro SDA' cannot start a repository name",
                 "assignments.CON: reserved name on Windows",
                 "assignments.Ex-1: Windows or macOS treat it as the same folder "
                 "name as assignments.ex-1",

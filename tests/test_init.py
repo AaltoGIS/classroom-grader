@@ -5,7 +5,14 @@ from classroom_grader import cli
 from classroom_grader.init import GITIGNORE_LINES
 from classroom_grader.settings import load_settings
 
-FLAGS = ["--organization", "IntroSDA-2026", "--roster", "student_info.csv"]
+FLAGS = [
+    "--organization",
+    "IntroSDA-2026",
+    "--classroom",
+    "introsda",
+    "--roster",
+    "student_info.csv",
+]
 
 
 def answer(monkeypatch, *answers):
@@ -22,20 +29,27 @@ def answer(monkeypatch, *answers):
 
 
 @pytest.mark.parametrize(
-    ("flags", "answers"),
+    ("flags", "answers", "prefix"),
     [
-        ([*FLAGS, "--assignment", "Exercise-1", "--assignment", "Exercise.2"], []),
-        ([], ["IntroSDA-2026", "", "Exercise-1, Exercise.2"]),
+        (
+            [*FLAGS, "--assignment", "Exercise-1", "--assignment", "Exercise.2"],
+            [],
+            "introsda-exercise-1",
+        ),
+        ([], ["IntroSDA-2026", "", "", "Exercise-1, Exercise.2"], "exercise-1"),
     ],
-    ids=["options", "questions"],
+    ids=["options", "questions-without-classroom"],
 )
-def test_init_writes_settings_and_nbgrader_config(course, monkeypatch, flags, answers):
+def test_init_writes_settings_and_nbgrader_config(
+    course, monkeypatch, flags, answers, prefix
+):
     answer(monkeypatch, *answers)
     assert cli.main(["init", "--course", str(course), *flags]) == 0
     settings = load_settings(course)
     assert settings.organization == "IntroSDA-2026"
     assert settings.roster == course / "student_info.csv"
     assert list(settings.assignments) == ["Exercise-1", "Exercise.2"]
+    assert settings.assignments["Exercise-1"].repo_prefix == prefix
     config = PyFileConfigLoader("nbgrader_config.py", path=str(course)).load_config()
     assert config.CourseDirectory.root == str(course)
     assert config.CourseDirectory.course_id == "IntroSDA-2026"

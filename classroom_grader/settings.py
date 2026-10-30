@@ -54,6 +54,7 @@ class Settings:
 
     root: Path
     organization: str
+    classroom: str | None
     roster: Path
     username_column: str | None
     grader: str | None
@@ -111,6 +112,10 @@ def parse_settings(
         problems.append(
             f"organization: {organization!r} is not a GitHub organization name"
         )
+    classroom = _string(data, "classroom", problems)
+    if classroom is not None and not _GITHUB_REPO.fullmatch(classroom):
+        problems.append(f"classroom: {classroom!r} cannot start a repository name")
+        classroom = None
     roster_name = _string(data, "roster", problems, required=True)
     if roster_name is not None and not (root / roster_name).is_file():
         problems.append(f"roster: file not found: {root / roster_name}")
@@ -120,12 +125,15 @@ def parse_settings(
     protocol = _string(data, "protocol", problems) or "https"
     if protocol not in PROTOCOLS:
         problems.append(f"protocol: must be one of {', '.join(PROTOCOLS)}")
-    assignments = _assignments(data.get("assignments", {}), organization, problems)
+    assignments = _assignments(
+        data.get("assignments", {}), organization, classroom, problems
+    )
     if problems:
         raise SettingsError(problems, source)
     return Settings(
         root=root,
         organization=organization,
+        classroom=classroom,
         roster=root / roster_name,
         username_column=username_column,
         grader=grader,
@@ -181,9 +189,13 @@ def _feedback_files(value: Any, problems: list[str]) -> tuple[str, ...]:
 
 
 def _assignments(
-    table: Any, organization: str | None, problems: list[str]
+    table: Any, organization: str | None, classroom: str | None, problems: list[str]
 ) -> dict[str, Assignment]:
-    """Check the ``[assignments.<name>]`` tables and fill in their defaults."""
+    """Check the ``[assignments.<name>]`` tables and fill in their defaults.
+
+    The default ``repo_prefix`` is ``<classroom>-<name>`` in lower case, the
+    start of Classroom 50's repository names, or ``<name>`` without a classroom.
+    """
     if not isinstance(table, dict):
         problems.append("assignments: must be a table of assignment tables")
         return {}
@@ -214,7 +226,9 @@ def _assignments(
                 f"{label}.type: must be one of {', '.join(ASSIGNMENT_TYPES)}"
             )
         given_prefix = _string(entry, "repo_prefix", problems, f"{label}.")
-        repo_prefix = given_prefix or name.lower()
+        repo_prefix = (
+            given_prefix or (f"{classroom}-{name}" if classroom else name).lower()
+        )
         if not _GITHUB_REPO.fullmatch(repo_prefix):
             problems.append(
                 _invalid(label, "repo_prefix", repo_prefix, given_prefix, _REPO_NAME)
