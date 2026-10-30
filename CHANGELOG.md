@@ -12,9 +12,11 @@ AaltoGIS/gradertools.
 - The roster CSV is read in the formats of earlier courses (comma, semicolon
   or tab; UTF-8 or Windows-1252); `--grader` and `--student` select students.
   `grader students` lists them and their local clones.
-- `grader fetch` clones or updates the students' Classroom repositories into
-  `submitted/<user>/<Assignment>`, lists missing repositories and, with a
-  deadline, late commits.
+- `grader fetch` clones or updates the students' Classroom 50 repositories
+  into `submitted/<user>/<Assignment>`, lists missing repositories and, with
+  a deadline, late commits. The `classroom` setting (`grader init
+  --classroom`) gives the repository names Classroom 50's form,
+  `<classroom>-<assignment>-<username>`.
 - `grader status` shows per student whether the feedback is committed and
   pushed, apart from notebook metadata changes and checkpoint files.
 - `grader push` commits only the feedback files, places the commit on top of

@@ -46,6 +46,10 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--organization", help="GitHub organization of the course")
     parser.add_argument(
+        "--classroom",
+        help="Classroom 50 classroom, the start of the students' repository names",
+    )
+    parser.add_argument(
         "--roster",
         help="roster CSV file, relative to the course folder "
         f"(default: {DEFAULT_ROSTER})",
@@ -72,6 +76,7 @@ def run(args: argparse.Namespace) -> int:
     if os.path.lexists(settings_path):
         raise GraderError(f"{settings_path} exists already; edit it instead")
     organization = args.organization or _ask("GitHub organization")
+    classroom = args.classroom or _ask("Classroom 50 classroom")
     roster = args.roster or _ask("Roster CSV file", DEFAULT_ROSTER)
     names = args.assignment
     if names is None:
@@ -81,6 +86,8 @@ def run(args: argparse.Namespace) -> int:
         "roster": roster,
         "assignments": {name.strip(): {} for name in names if name.strip()},
     }
+    if classroom:
+        data["classroom"] = classroom
     settings = parse_settings(data, root)
 
     config_path = root / NBGRADER_CONFIG
@@ -168,8 +175,12 @@ def _confirm(question: str) -> bool:
 
 def _settings_text(settings: Settings, roster: str) -> str:
     """Render ``grader.toml``, with the optional settings as comments."""
+    classroom = '# classroom = "NAME"  # Classroom 50 classroom'
+    if settings.classroom:
+        classroom = f"classroom = {_toml_string(settings.classroom)}"
     lines = [
         f"organization = {_toml_string(settings.organization)}",
+        classroom,
         f"roster = {_toml_string(roster)}",
         '# username_column = "user"  # found in the roster when left out',
         '# grader = "NAME"  # default for --grader',
