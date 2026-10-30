@@ -66,6 +66,15 @@ first of `user`, `username`, `github`, `github_name` or `githubname` (in any
 case), or the one named by `username_column` in `grader.toml`. An optional
 `grader` column assigns students to assistants for `--grader`.
 
+Classroom 50's own `roster.csv`, in the classroom's folder of the
+organization's private `classroom50` repository, can be copied as the roster.
+Its `username` column is found, and two kinds of rows are left out: staff
+(rows whose `role` is `ta`, `hta` or `teacher`) and invitations not yet
+accepted, which have no username. Add a `grader` column to the copy. `grader`
+reads only the username, `grader` and `role` columns, so you can delete the
+others, such as names and email addresses. The copy does not follow
+Classroom 50: when students join later, copy the new rows and push again.
+
 ## grader.toml
 
 `grader.toml` is the course's settings file, in the course folder: the
