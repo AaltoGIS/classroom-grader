@@ -10,7 +10,8 @@ AaltoGIS/gradertools.
   private repository; settings are checked as a whole, with every problem
   reported by name.
 - The roster CSV is read in the formats of earlier courses (comma, semicolon
-  or tab; UTF-8 or Windows-1252); `--grader` and `--student` select students.
+  or tab; UTF-8 or Windows-1252) and as Classroom 50's `roster.csv`, without
+  its staff rows; `--grader` and `--student` select students.
   `grader students` lists them and their local clones.
 - `grader fetch` clones or updates the students' Classroom 50 repositories
   into `submitted/<user>/<Assignment>`, lists missing repositories and, with
