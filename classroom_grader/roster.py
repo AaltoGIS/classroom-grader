@@ -11,6 +11,9 @@ from classroom_grader import GraderError
 
 USERNAME_COLUMNS = ("user", "username", "github", "github_name", "githubname")
 GRADER_COLUMN = "grader"
+# Classroom 50's roster.csv also lists staff, with role ta, hta or teacher.
+ROLE_COLUMN = "role"
+STUDENT_ROLE = "student"
 # GitHub usernames, plus the underscore of Enterprise managed-user names.
 _USERNAME = re.compile(r"[A-Za-z0-9_-]+")
 
@@ -36,7 +39,8 @@ def read_roster(path: Path, username_column: str | None = None) -> Roster:
 
     The username column is ``username_column`` or else the first of
     ``USERNAME_COLUMNS`` found, matched case-insensitively. Rows without a
-    username are skipped; a username listed again (in any case) keeps its first
+    username are skipped, and so are rows whose ``role`` column names another
+    role than ``student``; a username listed again (in any case) keeps its first
     row and is reported in ``duplicates``. Usernames become folder names, so one
     that is not a GitHub username is an error.
     """
@@ -56,13 +60,15 @@ def read_roster(path: Path, username_column: str | None = None) -> Roster:
             f"{', '.join(rows[0])}. Set username_column in grader.toml"
         )
     grader_index = header.index(GRADER_COLUMN) if GRADER_COLUMN in header else None
+    role_index = header.index(ROLE_COLUMN) if ROLE_COLUMN in header else None
     students: list[Student] = []
     duplicates: list[str] = []
     seen: set[str] = set()
     invalid: list[str] = []
     for number, row in enumerate(rows[1:], start=2):
         username = _cell(row, user_index)
-        if not username:
+        role = _cell(row, role_index).casefold()
+        if not username or role not in ("", STUDENT_ROLE):
             continue
         if not _USERNAME.fullmatch(username):
             invalid.append(f"row {number}: {username!r}")

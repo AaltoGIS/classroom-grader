@@ -225,11 +225,8 @@ time (default 8).
 
 ## Development
 
-```
-uv run pytest
-uv run ruff check
-uv run ruff format --check
-```
+[Development](docs/development.md) describes how to run the tests and the
+lint.
 
 ## Licence
 

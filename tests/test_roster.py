@@ -35,6 +35,14 @@ STUDENTS = [
             [Student("dave", "Emma"), Student("eve", None)],
             ["DAVE"],
         ),
+        (
+            b"username,email,github_id,role,grader\n"
+            + b"alice-k,a@x.fi,1,student,Emma\nemma-v,e@x.fi,2,ta,\n"
+            + b",p@x.fi,,student,\nbob,b@x.fi,3,,Newsha\nhead,h@x.fi,4,HTA,\n",
+            None,
+            [Student("alice-k", "Emma"), Student("bob", "Newsha")],
+            [],
+        ),
     ],
     ids=[
         "comma",
@@ -42,6 +50,7 @@ STUDENTS = [
         "cp1252",
         "configured",
         "tab-grader-blank-repeat",
+        "classroom50-roles",
     ],
 )
 def test_roster_formats_from_past_courses(
