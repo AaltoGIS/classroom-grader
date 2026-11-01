@@ -139,3 +139,8 @@ This clones the teacher's repository (`source_repo`) into
 the student version into `release/Exercise-3`. nbgrader leaves an existing
 release alone unless you add `--force`. A notebook without nbgrader metadata
 is copied unchanged. `grader source` never pushes anything.
+
+## A trial run
+
+Before the course starts, try `grader` with test assignments, as described
+in [Trial run](trial-run.md).
