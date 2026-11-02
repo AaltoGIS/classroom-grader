@@ -44,7 +44,7 @@ _LISTED = {
     "empty": "Empty repository (nothing pushed yet)",
     "not updated": "Not updated (fetched only)",
     "refused": "Refused",
-    "no repo": "No repo (not accepted, or no access)",
+    "no repo": "No repo named {repo} (not accepted, or no access)",
     "failed": "Failed",
 }
 
@@ -121,10 +121,11 @@ def fetch_report(assignment: Assignment, results: list[FetchResult]) -> str:
         ", ".join(f"{counts[s]} {s}" for s in STATES if counts[s]) or "no students"
     )
     lines = [f"{assignment.name}: {summary}"]
+    repo = repo_name(assignment, f"<{assignment.owner_title.lower()}>")
     for state, title in _LISTED.items():
         listed = [result for result in results if result.state == state]
         if listed:
-            lines.append(f"{title}:")
+            lines.append(f"{title.format(repo=repo)}:")
             lines.extend(
                 f"  {r.student}{': ' + r.detail if r.detail else ''}" for r in listed
             )

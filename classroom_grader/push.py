@@ -152,8 +152,7 @@ def push_report(assignment: Assignment, results: list[PushResult]) -> str:
     summary = (
         ", ".join(f"{counts[s]} {s}" for s in STATES if counts[s]) or "no students"
     )
-    who = "Team" if assignment.type == "group" else "Student"
-    table = format_table([who, "Result", "Details"], rows)
+    table = format_table([assignment.owner_title, "Result", "Details"], rows)
     return f"{assignment.name}\n{table}\n{assignment.name}: {summary}"
 
 

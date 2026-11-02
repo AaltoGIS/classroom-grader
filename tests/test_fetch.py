@@ -41,7 +41,7 @@ def test_fetch_clones_updates_and_lists_what_needs_attention(
         "Exercise-1: 5 cloned, 1 empty, 4 no repo\n"
         "Empty repository (nothing pushed yet):\n"
         "  ivan\n"
-        "No repo (not accepted, or no access):\n"
+        "No repo named exercise-1-<student> (not accepted, or no access):\n"
         "  alice\n  dave\n  erin\n  gina\n"
     )
     submitted = fetch_course / "submitted"
@@ -87,7 +87,7 @@ def test_fetch_clones_updates_and_lists_what_needs_attention(
         "Refused:\n"
         f"  erin: its origin is {str(bob_url)!r}, not IntroSDA-2026/exercise-1-erin\n"
         "  gina: the folder exists but has no .git folder of its own\n"
-        "No repo (not accepted, or no access):\n"
+        "No repo named exercise-1-<student> (not accepted, or no access):\n"
         "  dave\n"
         "Newest commit after the deadline 2026-11-13 23:59+02:00 "
         "(commit times come from the students' computers):\n"
