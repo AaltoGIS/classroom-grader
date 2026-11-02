@@ -17,9 +17,11 @@ STUDENTS = [
     [
         (b"user,Lastname,Firstname\nAija-Lehtola,L,A\n", None, ["Aija-Lehtola"], []),
         (
-            "\ufeffUser;Last name;First name\r\nbob;Smith, Jr;Bob\r\n".encode(),
+            (
+                "\ufeffUser;Last name;First name\r\nbob;Smith, Jr;Bob\r\nana;Aho\r\n"
+            ).encode(),
             None,
-            ["bob"],
+            ["bob", "ana"],
             [],
         ),
         (
@@ -46,7 +48,7 @@ STUDENTS = [
     ],
     ids=[
         "comma",
-        "semicolon-bom-crlf",
+        "semicolon-bom-crlf-uneven",
         "cp1252",
         "configured",
         "tab-grader-blank-repeat",

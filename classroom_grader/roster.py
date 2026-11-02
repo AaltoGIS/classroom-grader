@@ -132,11 +132,16 @@ def _decode(data: bytes) -> str:
 
 
 def _delimiter(text: str) -> str:
-    """Guess the roster's delimiter among comma, semicolon and tab; default comma."""
-    try:
-        return csv.Sniffer().sniff(text[:4096], delimiters=",;\t").delimiter
-    except csv.Error:
-        return ","
+    """Return the comma, semicolon or tab that splits the header row the most.
+
+    The header names every column, so it holds the delimiter however the rows
+    below differ in width. A tie, as in a header of one column, gives the comma.
+    """
+
+    def header_width(delimiter: str) -> int:
+        return len(next(csv.reader(io.StringIO(text), delimiter=delimiter), []))
+
+    return max(",;\t", key=header_width)
 
 
 def _cell(row: list[str], index: int | None) -> str:

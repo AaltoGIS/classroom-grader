@@ -60,11 +60,12 @@ lists those students as having no repository.
 
 ## The roster
 
-The roster is a CSV file with one row per student. Commas, semicolons and
-tabs all work, and so do files saved by Excel. The username column is the
-first of `user`, `username`, `github`, `github_name` or `githubname` (in any
-case), or the one named by `username_column` in `grader.toml`. An optional
-`grader` column assigns students to assistants for `--grader`.
+The roster is a CSV file whose first row names the columns, with one row per
+student below it. Commas, semicolons and tabs all work, and so do files saved
+by Excel; `grader` takes the separator from the first row. The username column
+is the first of `user`, `username`, `github`, `github_name` or `githubname`
+(in any case), or the one named by `username_column` in `grader.toml`. An
+optional `grader` column assigns students to assistants for `--grader`.
 
 Classroom 50's own `roster.csv`, in the classroom's folder of the
 organization's private `classroom50` repository, can be copied as the roster.
