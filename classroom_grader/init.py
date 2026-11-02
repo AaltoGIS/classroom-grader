@@ -6,7 +6,7 @@ import os
 import re
 from pathlib import Path
 
-from classroom_grader import GraderError
+from classroom_grader import GraderError, write_new
 from classroom_grader.settings import SETTINGS_FILE, Settings, parse_settings
 
 HELP = "Write grader.toml, nbgrader_config.py and .gitignore for a course."
@@ -113,14 +113,14 @@ def run(args: argparse.Namespace) -> int:
         raise GraderError(f"{gitignore} is not a file; move it away first")
     old_gitignore = gitignore.read_bytes() if gitignore.is_file() else None
 
-    _write_new(settings_path, _settings_text(settings, roster).encode())
+    write_new(settings_path, _settings_text(settings, roster).encode())
     print(f"Wrote {settings_path}")
     if replace:
-        _write_new(backup, old_bytes)
+        write_new(backup, old_bytes)
         config_path.unlink()
         print(f"Kept the old {NBGRADER_CONFIG} as {backup}")
     if old_text is None or replace:
-        _write_new(config_path, config_text.encode())
+        write_new(config_path, config_text.encode())
         print(f"Wrote {config_path}")
     elif old_text != config_text:
         print(f"Left {config_path} unchanged")
@@ -139,7 +139,7 @@ def _update_gitignore(path: Path, old: bytes | None) -> None:
         return
     text = "\n".join(missing) + "\n"
     if old is None:
-        _write_new(path, text.encode())
+        write_new(path, text.encode())
         print(f"Wrote {path}")
         return
     if old and not old.endswith(b"\n"):
@@ -147,15 +147,6 @@ def _update_gitignore(path: Path, old: bytes | None) -> None:
     with path.open("ab") as file:
         file.write(text.encode())
     print(f"Added {', '.join(missing)} to {path}")
-
-
-def _write_new(path: Path, content: bytes) -> None:
-    """Write ``content`` to a new file; refuse when ``path`` exists, even as a link."""
-    try:
-        with path.open("xb") as file:
-            file.write(content)
-    except FileExistsError:
-        raise GraderError(f"{path} exists already") from None
 
 
 def _ask(question: str, default: str | None = None) -> str | None:

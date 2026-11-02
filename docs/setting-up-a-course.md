@@ -166,6 +166,40 @@ the student version into `release/Exercise-3`. nbgrader leaves an existing
 release alone unless you add `--force`. A notebook without nbgrader metadata
 is copied unchanged. `grader source` never pushes anything.
 
+## The grading spreadsheet
+
+`grader grading-sheet` writes the course's grading spreadsheet from an Excel
+template, with a row for every student in the roster:
+
+```
+grader grading-sheet --template grading-template.xlsx --output grading-2026.xlsx
+```
+
+It uses the roster of the course folder; `--roster roster.csv` names another
+file. It never overwrites an existing file. The template is an Excel workbook
+(`.xlsx`); from Google Sheets, save one with **File**, **Download**,
+**Microsoft Excel**.
+
+In each sheet whose first row has a username column (`user`, `username`,
+`github`, `github_name` or `githubname`):
+
+- Row 1 holds the headers and row 2 is an example row, for example with your
+  own username and made-up points.
+- Each student gets a row, from row 2 down, in roster order, with the example
+  row's formulas and formatting but none of its plain values, so the points
+  start empty. A formula moves with its row: `=SUM(F2:J2)` becomes
+  `=SUM(F3:J3)` in row 3, while a reference with `$`, such as `B$71`, keeps
+  pointing at the same cell.
+- The username column gets the username, and a column headed `grader` or
+  `Examiner` gets the student's grader from the roster.
+- The students fill the rows from row 2 down, so those rows must be empty
+  below the example row: with 65 students, rows 3 to 66. If something is
+  there, such as a table of grade limits or a merged cell, `grader` stops and
+  names the cell: move it further down, or to a sheet of its own.
+
+Other sheets are copied as they are. Charts and pictures in the template may
+be lost.
+
 ## A trial run
 
 Before the course starts, try `grader` with test assignments, as described

@@ -11,6 +11,7 @@ from classroom_grader import (
     fetch,
     init,
     push,
+    sheet,
     source,
     status,
     students,
@@ -34,6 +35,7 @@ COMMANDS: tuple[Command, ...] = (
     Command("status", status.HELP, status.add_arguments, status.run),
     Command("push", push.HELP, push.add_arguments, push.run),
     Command("source", source.HELP, source.add_arguments, source.run),
+    Command("grading-sheet", sheet.HELP, sheet.add_arguments, sheet.run),
 )
 
 

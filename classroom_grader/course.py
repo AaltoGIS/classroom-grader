@@ -68,7 +68,7 @@ def open_course(args: argparse.Namespace) -> tuple[Settings, list[Student]]:
     Usernames listed more than once in the roster are reported on stderr.
     """
     settings = course_settings(args)
-    roster = _read_roster(settings)
+    roster = load_roster(settings.roster, settings.username_column)
     grader = args.grader or settings.grader
     return settings, select_students(roster.students, grader, args.student or ())
 
@@ -87,7 +87,7 @@ def open_assignments(
     """
     settings = course_settings(args)
     assignments = select_assignments(settings, args.assignments)
-    roster = _read_roster(settings)
+    roster = load_roster(settings.roster, settings.username_column)
     students = []
     if any(assignment.type != "group" for assignment in assignments):
         grader = args.grader or settings.grader
@@ -165,13 +165,13 @@ def _positive_int(text: str) -> int:
     return int(text)
 
 
-def _read_roster(settings: Settings) -> Roster:
-    """Read the course roster, warning on stderr about usernames listed twice."""
-    roster = read_roster(settings.roster, settings.username_column)
+def load_roster(path: Path, username_column: str | None = None) -> Roster:
+    """Read a roster, warning on stderr about usernames listed twice."""
+    roster = read_roster(path, username_column)
     for username in roster.duplicates:
         print(
             f"grader: warning: {username} is listed more than once in "
-            f"{settings.roster}; using the first row",
+            f"{path}; using the first row",
             file=sys.stderr,
         )
     return roster
