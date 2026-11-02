@@ -144,8 +144,7 @@ def status_report(assignment: Assignment, results: list[RepoStatus]) -> str:
         ]
         for r in results
     ]
-    who = "Team" if assignment.type == "group" else "Student"
-    headers = [who, "State", "Other local changes", "Late"]
+    headers = [assignment.owner_title, "State", "Other local changes", "Late"]
     lines = [assignment.name, format_table(headers, rows)]
     problems = [r for r in results if r.detail]
     if problems:
