@@ -45,7 +45,8 @@ def read_roster(path: Path, username_column: str | None = None) -> Roster:
     that is not a GitHub username is an error.
     """
     text = _decode(path.read_bytes())
-    rows = list(csv.reader(io.StringIO(text), delimiter=_delimiter(text)))
+    # newline="" lets the csv reader end rows at CR, LF or CRLF.
+    rows = list(csv.reader(io.StringIO(text, newline=""), delimiter=_delimiter(text)))
     if not rows:
         raise GraderError(f"{path} is empty")
     header = [cell.strip().casefold() for cell in rows[0]]
@@ -139,7 +140,8 @@ def _delimiter(text: str) -> str:
     """
 
     def header_width(delimiter: str) -> int:
-        return len(next(csv.reader(io.StringIO(text), delimiter=delimiter), []))
+        rows = csv.reader(io.StringIO(text, newline=""), delimiter=delimiter)
+        return len(next(rows, []))
 
     return max(",;\t", key=header_width)
 
