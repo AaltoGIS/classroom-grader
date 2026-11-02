@@ -58,20 +58,47 @@ Collect the scores (**Collect now** in Classroom 50) after the students have
 accepted, before the assistants run `grader fetch`; until then, `grader fetch`
 lists those students as having no repository.
 
+## Check the settings against GitHub
+
+Each year, once students have accepted the first assignment, check that
+`grader` finds their repositories with the new roster and `grader.toml`. In
+the course folder, run:
+
+```
+grader students
+grader fetch Exercise-1
+grader status Exercise-1
+```
+
+- `grader students` lists every student of the roster and none of the staff.
+- `grader fetch` clones the repositories into `submitted/`. Its first line
+  counts the students, for example `Exercise-1: 61 cloned, 4 no repo`. The
+  students listed under `No repo named introsda-exercise-1-<student>` have
+  not accepted the assignment, or you cannot see their repositories.
+  If nearly every student is listed there, compare that name with the
+  students' repositories in the organization: a wrong `classroom` or
+  `repo_prefix` in `grader.toml` is the usual cause.
+- `grader status` shows the cloned students as `up to date`.
+
+These commands only read from GitHub. Do not run `grader push` for the
+check: it commits to the students' repositories.
+
 ## The roster
 
-The roster is a CSV file with one row per student. Commas, semicolons and
-tabs all work, and so do files saved by Excel. The username column is the
-first of `user`, `username`, `github`, `github_name` or `githubname` (in any
-case), or the one named by `username_column` in `grader.toml`. An optional
-`grader` column assigns students to assistants for `--grader`.
+The roster is a CSV file whose first row names the columns, with one row per
+student below it. Commas, semicolons and tabs all work, and so do files saved
+by Excel; `grader` takes the separator from the first row. The username column
+is the first of `user`, `username`, `github`, `github_name` or `githubname`
+(in any case), or the one named by `username_column` in `grader.toml`. An
+optional `grader` column assigns students to assistants for `--grader`.
 
 Classroom 50's own `roster.csv`, in the classroom's folder of the
 organization's private `classroom50` repository, can be copied as the roster.
 Its `username` column is found, and two kinds of rows are left out: staff
 (rows whose `role` is `ta`, `hta` or `teacher`) and invitations not yet
-accepted, which have no username. Add a `grader` column to the copy. `grader`
-reads only the username, `grader` and `role` columns, so you can delete the
+accepted, which have no username. Add a `grader` column to the copy, by hand
+or with `grader grading-sheet --assistant` (see
+[The grading spreadsheet](#the-grading-spreadsheet)). `grader` reads only the username, `grader` and `role` columns, so you can delete the
 others, such as names and email addresses. The copy does not follow
 Classroom 50: when students join later, copy the new rows and push again.
 
@@ -139,6 +166,56 @@ This clones the teacher's repository (`source_repo`) into
 the student version into `release/Exercise-3`. nbgrader leaves an existing
 release alone unless you add `--force`. A notebook without nbgrader metadata
 is copied unchanged. `grader source` never pushes anything.
+
+## The grading spreadsheet
+
+`grader grading-sheet` writes the course's grading spreadsheet from an Excel
+template, with a row for every student in the roster:
+
+```
+grader grading-sheet --template grading-template.xlsx --output grading-2026.xlsx
+```
+
+It uses the roster of the course folder; `--roster roster.csv` names another
+file. The spreadsheet must not exist yet. The template is an Excel workbook
+(`.xlsx`); from Google Sheets, save one with **File**, **Download**,
+**Microsoft Excel**.
+
+In each sheet whose first row has a username column (`user`, `username`,
+`github`, `github_name` or `githubname`):
+
+- Row 1 holds the headers and row 2 is an example row, for example with your
+  own username and made-up points.
+- Each student gets a row, from row 2 down, in roster order, with the example
+  row's formulas and formatting but none of its plain values, so the points
+  start empty. A formula moves with its row: `=SUM(F2:J2)` becomes
+  `=SUM(F3:J3)` in row 3, while a reference with `$`, such as `B$71`, keeps
+  pointing at the same cell.
+- The username column gets the username, and a column headed `grader` or
+  `Examiner` gets the student's grader from the roster.
+- The students fill the rows from row 2 down, so those rows must be empty
+  below the example row: with 65 students, rows 3 to 66. If something is
+  there, such as a table of grade limits or a merged cell, `grader` stops and
+  names the cell: move it further down, or to a sheet of its own.
+
+Other sheets are copied as they are. Charts and pictures in the template may
+be lost.
+
+To split the students between the assistants at the same time, name each
+assistant with `--assistant`:
+
+```
+grader grading-sheet --template grading-template.xlsx --output grading-2026.xlsx --assistant Emma --assistant Alvina
+```
+
+The students are split into blocks in roster order, the first ones to Emma
+and the rest to Alvina, so that the numbers differ by at most one. The
+`Examiner` column shows the split, and `grader` also writes it into the
+roster's `grader` column, adding the column if it is missing, so that
+`grader fetch --grader Emma` picks the same students. Commit and push the
+roster afterwards. If the roster names graders already, `--assistant` is
+refused; a student who joins later is added to the spreadsheet and the roster
+by hand.
 
 ## A trial run
 

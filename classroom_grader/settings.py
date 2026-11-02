@@ -47,6 +47,11 @@ class Assignment:
     source_repo: str
     deadline: datetime | None
 
+    @property
+    def owner_title(self) -> str:
+        """Who has one repository of the assignment: ``Student`` or ``Team``."""
+        return "Team" if self.type == "group" else "Student"
+
 
 @dataclass(frozen=True)
 class Settings:

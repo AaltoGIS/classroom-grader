@@ -26,6 +26,10 @@ AaltoGIS/gradertools.
   and releases the assignment with nbgrader.
 - Group assignments: the teams' repositories are found through the GitHub
   API and handled like students.
+- `grader grading-sheet` writes a grading spreadsheet from an Excel template,
+  with a row per student that gets the template's formulas and formatting;
+  `--assistant` splits the students between the assistants, in the
+  spreadsheet and in the roster's `grader` column.
 - One grading environment for Introduction to Spatial Data Analysis and
   Sustainability GIS, a guide for course assistants in the README, a guide
   for teachers on setting up a course, and a checklist for a trial run before

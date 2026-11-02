@@ -15,11 +15,13 @@ STUDENTS = [
 @pytest.mark.parametrize(
     ("content", "username_column", "students", "duplicates"),
     [
-        (b"user,Lastname,Firstname\nAija-Lehtola,L,A\n", None, ["Aija-Lehtola"], []),
+        (b"user,Lastname,Firstname\rAija-Lehtola,L,A", None, ["Aija-Lehtola"], []),
         (
-            "\ufeffUser;Last name;First name\r\nbob;Smith, Jr;Bob\r\n".encode(),
+            (
+                "\ufeffUser;Last name;First name\r\nbob;Smith, Jr;Bob\r\nana;Aho\r\n"
+            ).encode(),
             None,
-            ["bob"],
+            ["bob", "ana"],
             [],
         ),
         (
@@ -45,8 +47,8 @@ STUDENTS = [
         ),
     ],
     ids=[
-        "comma",
-        "semicolon-bom-crlf",
+        "comma-cr",
+        "semicolon-bom-crlf-uneven",
         "cp1252",
         "configured",
         "tab-grader-blank-repeat",
