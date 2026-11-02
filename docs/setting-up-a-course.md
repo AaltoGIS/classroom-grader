@@ -58,6 +58,31 @@ Collect the scores (**Collect now** in Classroom 50) after the students have
 accepted, before the assistants run `grader fetch`; until then, `grader fetch`
 lists those students as having no repository.
 
+## Check the settings against GitHub
+
+Each year, once students have accepted the first assignment, check that
+`grader` finds their repositories with the new roster and `grader.toml`. In
+the course folder, run:
+
+```
+grader students
+grader fetch Exercise-1
+grader status Exercise-1
+```
+
+- `grader students` lists every student of the roster and none of the staff.
+- `grader fetch` clones the repositories into `submitted/`. Its first line
+  counts the students, for example `Exercise-1: 61 cloned, 4 no repo`. The
+  students listed under `No repo named introsda-exercise-1-<student>` have
+  not accepted the assignment, or you cannot see their repositories.
+  If nearly every student is listed there, compare that name with the
+  students' repositories in the organization: a wrong `classroom` or
+  `repo_prefix` in `grader.toml` is the usual cause.
+- `grader status` shows the cloned students as `up to date`.
+
+These commands only read from GitHub. Do not run `grader push` for the
+check: it commits to the students' repositories.
+
 ## The roster
 
 The roster is a CSV file whose first row names the columns, with one row per
