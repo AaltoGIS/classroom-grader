@@ -11,8 +11,8 @@ uv run ruff check
 uv run ruff format --check
 ```
 
-CI runs the tests on Linux, macOS and Windows with Python 3.11 and 3.14,
-and the two lint checks once, on Linux.
+CI runs the tests on Linux and Windows with Python 3.11 and 3.14 and on macOS
+with Python 3.14, and the two lint checks once, on Linux.
 
 The tests need git, but not GitHub, the GitHub CLI or nbgrader: bare
 repositories in a temporary folder stand in for GitHub (the `github` fixture
