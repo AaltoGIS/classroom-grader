@@ -96,8 +96,9 @@ Classroom 50's own `roster.csv`, in the classroom's folder of the
 organization's private `classroom50` repository, can be copied as the roster.
 Its `username` column is found, and two kinds of rows are left out: staff
 (rows whose `role` is `ta`, `hta` or `teacher`) and invitations not yet
-accepted, which have no username. Add a `grader` column to the copy. `grader`
-reads only the username, `grader` and `role` columns, so you can delete the
+accepted, which have no username. Add a `grader` column to the copy, by hand
+or with `grader grading-sheet --assistant` (see
+[The grading spreadsheet](#the-grading-spreadsheet)). `grader` reads only the username, `grader` and `role` columns, so you can delete the
 others, such as names and email addresses. The copy does not follow
 Classroom 50: when students join later, copy the new rows and push again.
 
@@ -176,7 +177,7 @@ grader grading-sheet --template grading-template.xlsx --output grading-2026.xlsx
 ```
 
 It uses the roster of the course folder; `--roster roster.csv` names another
-file. It never overwrites an existing file. The template is an Excel workbook
+file. The spreadsheet must not exist yet. The template is an Excel workbook
 (`.xlsx`); from Google Sheets, save one with **File**, **Download**,
 **Microsoft Excel**.
 
@@ -199,6 +200,22 @@ In each sheet whose first row has a username column (`user`, `username`,
 
 Other sheets are copied as they are. Charts and pictures in the template may
 be lost.
+
+To split the students between the assistants at the same time, name each
+assistant with `--assistant`:
+
+```
+grader grading-sheet --template grading-template.xlsx --output grading-2026.xlsx --assistant Emma --assistant Aliisa
+```
+
+The students are split into blocks in roster order, the first ones to Emma
+and the rest to Aliisa, so that the numbers differ by at most one. The
+`Examiner` column shows the split, and `grader` also writes it into the
+roster's `grader` column, adding the column if it is missing, so that
+`grader fetch --grader Emma` picks the same students. Commit and push the
+roster afterwards. If the roster names graders already, `--assistant` is
+refused; a student who joins later is added to the spreadsheet and the roster
+by hand.
 
 ## A trial run
 

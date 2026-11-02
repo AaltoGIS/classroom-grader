@@ -3,6 +3,7 @@
 import argparse
 import io
 import zipfile
+from collections import Counter
 from copy import copy
 from pathlib import Path
 
@@ -15,9 +16,15 @@ from openpyxl.utils.exceptions import InvalidFileException
 from openpyxl.worksheet.formula import ArrayFormula, DataTableFormula
 from openpyxl.worksheet.worksheet import Worksheet
 
-from classroom_grader import GraderError, write_new
+from classroom_grader import GraderError, replace_file, write_new
 from classroom_grader.course import add_course_option, course_settings, load_roster
-from classroom_grader.roster import GRADER_COLUMN, USERNAME_COLUMNS, Student
+from classroom_grader.roster import (
+    GRADER_COLUMN,
+    USERNAME_COLUMNS,
+    Student,
+    roster_with_graders,
+    split_between,
+)
 
 HELP = "Write a grading spreadsheet from an Excel template, one row per student."
 # The row under the headers whose formulas and formatting every student gets.
@@ -42,26 +49,68 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         type=Path,
         help="roster CSV file (default: the roster in the course's grader.toml)",
     )
+    parser.add_argument(
+        "--assistant",
+        action="append",
+        metavar="NAME",
+        help="split the students between these graders, also in the roster's "
+        "grader column; repeat for each",
+    )
     add_course_option(parser)
 
 
 def run(args: argparse.Namespace) -> int:
-    """Write the template filled with the roster's students to ``--output``."""
-    if args.roster:
-        roster = load_roster(args.roster)
-    else:
+    """Write the template filled with the roster's students to ``--output``.
+
+    With ``--assistant``, the students are first split into blocks between the
+    assistants, and the split is also written into the roster.
+    """
+    roster_path, username_column = args.roster, None
+    if roster_path is None:
         settings = course_settings(args)
-        roster = load_roster(settings.roster, settings.username_column)
-    workbook = fill_template(args.template, roster.students)
+        roster_path, username_column = settings.roster, settings.username_column
+    students = load_roster(roster_path, username_column).students
+    assistants = _assistant_names(args.assistant or [])
+    new_roster = None
+    if assistants:
+        if any(student.grader for student in students):
+            raise GraderError(
+                f"{roster_path} names graders already; leave out --assistant to "
+                "use them, or empty its grader column first"
+            )
+        students = split_between(students, assistants)
+        graders = {student.username.casefold(): student.grader for student in students}
+        new_roster = roster_with_graders(roster_path, graders, username_column)
+    workbook = fill_template(args.template, students, needs_graders=bool(assistants))
     content = io.BytesIO()
     workbook.save(content)
     write_new(args.output, content.getvalue())
-    count = len(roster.students)
+    if new_roster is not None:
+        try:
+            replace_file(roster_path, new_roster)
+        except OSError:
+            args.output.unlink(missing_ok=True)
+            raise
+    count = len(students)
     print(f"Wrote {args.output}: {count} student{'' if count == 1 else 's'}")
+    if assistants:
+        counts = Counter(student.grader for student in students)
+        split = ", ".join(f"{name} {counts[name]}" for name in assistants)
+        print(f"Wrote the graders into {roster_path}: {split}")
     return 0
 
 
-def fill_template(template: Path, students: list[Student]) -> Workbook:
+def _assistant_names(names: list[str]) -> list[str]:
+    """Return the ``--assistant`` names stripped; refuse blank or repeated ones."""
+    names = [name.strip() for name in names]
+    if not all(names) or len({name.casefold() for name in names}) < len(names):
+        raise GraderError("--assistant needs a different, non-empty name each time")
+    return names
+
+
+def fill_template(
+    template: Path, students: list[Student], *, needs_graders: bool = False
+) -> Workbook:
     """Open ``template`` and give each sheet with a username column the students.
 
     In such a sheet the students take the rows from ``EXAMPLE_ROW`` down, in
@@ -69,7 +118,8 @@ def fill_template(template: Path, students: list[Student]) -> Workbook:
     and its formatting, but none of its plain values, comments or links; the
     username column gets the username and a ``grader`` or ``examiner`` column
     the student's grader. Sheets without a username column in their first row
-    are left as they are.
+    are left as they are. With ``needs_graders``, a template where no such
+    sheet has a grader column is refused.
     """
     if not students:
         raise GraderError("the roster has no students")
@@ -78,17 +128,26 @@ def fill_template(template: Path, students: list[Student]) -> Workbook:
     # SyntaxError covers the XML parsers' errors for a damaged file.
     except (InvalidFileException, zipfile.BadZipFile, KeyError, SyntaxError) as error:
         raise GraderError(f"{template} is not an Excel workbook: {error}") from None
-    filled = [sheet for sheet in workbook.worksheets if _fill_sheet(sheet, students)]
+    results = [_fill_sheet(sheet, students) for sheet in workbook.worksheets]
+    filled = [has_graders for has_graders in results if has_graders is not None]
     if not filled:
         names = ", ".join(USERNAME_COLUMNS)
         raise GraderError(
             f"{template}: no sheet has a username column ({names}) in its first row"
         )
+    if needs_graders and not any(filled):
+        raise GraderError(
+            f"{template}: no sheet with students has a grader or Examiner column "
+            "for the --assistant split"
+        )
     return workbook
 
 
-def _fill_sheet(sheet: Worksheet, students: list[Student]) -> bool:
-    """Write one row per student into ``sheet``; False if it has no username column."""
+def _fill_sheet(sheet: Worksheet, students: list[Student]) -> bool | None:
+    """Write one row per student into ``sheet``; tell whether it has a grader column.
+
+    None means the sheet has no username column and is left alone.
+    """
     columns = {
         str(cell.value).strip().casefold(): cell.column
         for cell in sheet[1]
@@ -96,7 +155,7 @@ def _fill_sheet(sheet: Worksheet, students: list[Student]) -> bool:
     }
     user_column = next((columns[n] for n in USERNAME_COLUMNS if n in columns), None)
     if user_column is None:
-        return False
+        return None
     grader_column = next((columns[n] for n in GRADER_HEADERS if n in columns), None)
     last_row = EXAMPLE_ROW + len(students) - 1
     needed = f"the {len(students)} students need rows {EXAMPLE_ROW}-{last_row}"
@@ -133,7 +192,7 @@ def _fill_sheet(sheet: Worksheet, students: list[Student]) -> bool:
         dimension = copy(example_row)  # height, hiding and row formatting
         dimension.index = row
         sheet.row_dimensions[row] = dimension
-    return True
+    return grader_column is not None
 
 
 def _example_formula(sheet: Worksheet, cell: Cell) -> object:

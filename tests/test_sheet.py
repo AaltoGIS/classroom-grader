@@ -1,3 +1,4 @@
+import os
 import zipfile
 
 import pytest
@@ -123,3 +124,95 @@ def test_refusals_write_nothing(tmp_path, template, capsys, roster, case, messag
         if case == "output exists"
         else not output.exists()
     )
+
+
+@pytest.mark.parametrize(
+    ("roster", "written"),
+    [
+        (
+            '\ufeffusername,role,"full\nname"\r\nteach,teacher,T\r\n'
+            "s1,student,Väinö\r\ns2,student,\r\ns3,student,\r\ns4,student,\r\n"
+            "s5,student,,extra\r\n",
+            '\ufeffusername,role,"full\nname",,grader\r\nteach,teacher,T\r\n'
+            "s1,student,Väinö,,Emma\r\ns2,student,,,Emma\r\ns3,student,,,Emma\r\n"
+            "s4,student,,,Aliisa\r\ns5,student,,extra,Aliisa\r\n",
+        ),
+        (
+            "user;grader;role\ns1;;student\ns2;;\ns3;;student\ns1;Bob;student\n"
+            "s4;;student\ns5;;student\ns2;;ta",
+            "user;grader;role\ns1;Emma;student\ns2;Emma;\ns3;Emma;student\n"
+            "s1;Bob;student\ns4;Aliisa;student\ns5;Aliisa;student\ns2;;ta",
+        ),
+        (
+            'user,"full\nname"\rs1,"A\nB"\rs2,\rs3,\rs4,\rs5,\r',
+            'user,"full\nname",grader\rs1,"A\nB",Emma\rs2,,Emma\rs3,,Emma\r'
+            "s4,,Aliisa\rs5,,Aliisa\r",
+        ),
+    ],
+)
+def test_assistants_split_the_students_in_blocks(
+    tmp_path, template, capsys, roster, written
+):
+    roster_path = tmp_path / "roster.csv"
+    roster_path.write_bytes(roster.encode())
+    output = tmp_path / "grading.xlsx"
+    args = ["--template", str(template), "--output", str(output)]
+    split = ["--assistant", "Emma", "--assistant", "Aliisa"]
+    assert cli.main(["grading-sheet", *args, "--roster", str(roster_path), *split]) == 0
+    assert capsys.readouterr().out == (
+        f"Wrote {output}: 5 students\n"
+        f"Wrote the graders into {roster_path}: Emma 3, Aliisa 2\n"
+    )
+    sheet = load_workbook(output)["Grading"]
+    examiners = [sheet.cell(row, 3).value for row in range(2, 7)]
+    assert examiners == ["Emma", "Emma", "Emma", "Aliisa", "Aliisa"]
+    assert roster_path.read_bytes() == written.encode()
+
+
+@pytest.mark.skipif(
+    os.name == "nt", reason="symbolic links need extra rights on Windows"
+)
+def test_a_linked_roster_gets_the_graders_in_the_file_it_points_to(tmp_path, template):
+    target = tmp_path / "shared" / "roster.csv"
+    target.parent.mkdir()
+    target.write_bytes(b"user\nalice\n")
+    link = tmp_path / "roster.csv"
+    link.symlink_to(target)
+    output = tmp_path / "grading.xlsx"
+    args = ["--template", str(template), "--output", str(output), "--roster", str(link)]
+    assert cli.main(["grading-sheet", *args, "--assistant", "Emma"]) == 0
+    assert link.is_symlink()
+    assert target.read_bytes() == b"user,grader\nalice,Emma\n"
+
+
+@pytest.mark.parametrize(
+    ("roster", "assistants", "message"),
+    [
+        (b"user,grader\nalice,Emma\n", ["Aliisa"], "roster.csv names graders already"),
+        (b"user\nalice\n", ["Emma", " emma "], "a different, non-empty name each time"),
+        ("user,name\nalice,Väinö\n".encode("cp1252"), ["日本"], "its encoding, cp1252"),
+        (b"user\nalice\n", ["Emma"], "disk full"),
+        (b"user\nalice\n", ["Emma"], "no sheet with students has a grader"),
+    ],
+)
+def test_assistant_refusals_change_nothing(
+    tmp_path, template, capsys, monkeypatch, roster, assistants, message
+):
+    def full_disk(path, content):
+        raise OSError("disk full")
+
+    if message == "disk full":
+        monkeypatch.setattr("classroom_grader.sheet.replace_file", full_disk)
+    if message.startswith("no sheet"):
+        workbook = load_workbook(template)
+        workbook["Grading"]["C1"] = "Notes"
+        workbook.save(template)
+    roster_path = tmp_path / "roster.csv"
+    roster_path.write_bytes(roster)
+    output = tmp_path / "grading.xlsx"
+    args = ["--template", str(template), "--output", str(output)]
+    split = [option for name in assistants for option in ("--assistant", name)]
+    assert cli.main(["grading-sheet", *args, "--roster", str(roster_path), *split]) == 1
+    assert message in capsys.readouterr().err
+    assert roster_path.read_bytes() == roster
+    assert not output.exists()
