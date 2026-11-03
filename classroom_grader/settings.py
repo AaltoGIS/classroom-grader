@@ -17,6 +17,8 @@ DEFAULT_FEEDBACK_FILES = ("README.md",)
 ASSIGNMENT_TYPES = ("individual", "group")
 PROTOCOLS = ("https", "ssh")
 GRADES = 5
+DEFAULT_QUIZ_PASS_SHARE = 0.5
+DEFAULT_GRADE_LIMITS = (0.9, 0.8, 0.7, 0.6, 0.5)
 LIMITS_SHEET = "Limits"
 # The spreadsheet's columns around the exercises and the quizzes.
 SHEET_FIRST_COLUMNS = (
@@ -357,10 +359,10 @@ def _grading_sheet(table: Any, problems: list[str]) -> GradingSheet | None:
     quiz_max_points = table.get("quiz_max_points")
     if not _is_positive(quiz_max_points):
         problems.append(f"{label}quiz_max_points: must be a number above 0")
-    quiz_pass_share = table.get("quiz_pass_share")
+    quiz_pass_share = table.get("quiz_pass_share", DEFAULT_QUIZ_PASS_SHARE)
     if not _is_share(quiz_pass_share):
         problems.append(f"{label}quiz_pass_share: must be above 0 and at most 1")
-    limits = table.get("grade_limits")
+    limits = table.get("grade_limits", list(DEFAULT_GRADE_LIMITS))
     if (
         not isinstance(limits, list)
         or len(limits) != GRADES
