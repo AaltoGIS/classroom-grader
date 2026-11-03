@@ -7,32 +7,35 @@ assistant waiting. A run takes the tester one to two hours. Do it once on
 macOS and once on Windows, and also on Linux if an assistant grades there.
 
 The examples use the test students `alice`, `bob` and `carol`, the tester
-`Emma`, and the organization `IntroSDA-2026` with the classroom `introsda`;
+`Emma`, and the organization `IntroSDA-2026` with the classroom `isda`;
 use your own names.
 
 ## Prepare (teacher)
 
 - [ ] Find three people with their own GitHub accounts to act as students,
   and one person to act as the assistant (the tester).
-- [ ] Add the tester as a TA of the classroom in Classroom 50 (the
-  classroom's **Settings**, **Staff and roles**).
+- [ ] Add the tester as a TA of the classroom in Classroom 50, under **Staff
+  and roles** on the classroom's settings page,
+  `https://classroom50.org/IntroSDA-2026/isda/settings`.
 - [ ] Create two test assignments in Classroom 50: `Exercise-1` for
   individual students and `Final-assignment` for groups. Alice and Bob accept
   `Exercise-1` and push a notebook; Carol does not accept it. Alice and Bob
   accept `Final-assignment` as one team and push any file.
-- [ ] Check the repository names on GitHub: `introsda-exercise-1-alice`,
-  `introsda-exercise-1-bob` and `introsda-final-assignment-group-1`. If
+- [ ] Check the repository names on GitHub: `isda-exercise-1-alice`,
+  `isda-exercise-1-bob` and `isda-final-assignment-group-1`. If
   Classroom 50 named them differently, write the names down; `grader` looks
   for these.
 - [ ] Create the teacher's repository `IntroSDA-2026/Exercise-1-grading`
   with a notebook that has nbgrader metadata, for example an exercise from
   an earlier course.
 - [ ] Set up the course repository as in
-  [Setting up a course](setting-up-a-course.md), with three differences:
+  [Setting up a course](setting-up-a-course.md), with four differences:
   - The roster is a copy of Classroom 50's own `roster.csv` with a `grader`
     column that names Emma for every student. Add a row for Carol if the file
     has none with her username. Leave any staff rows (`role` `ta`, `hta` or
     `teacher`) in: `grader` should skip them.
+  - Leave `--assistant` out when you write the spreadsheet, because the roster
+    names the grader already.
   - `Exercise-1` gets a deadline after Alice's first push, and Alice pushes
     a second commit after the deadline.
   - `Final-assignment` has `type = "group"`.
@@ -78,6 +81,10 @@ Run the commands in the course folder.
   the feedback.
 - [ ] `grader status Exercise-1 --grader Emma` shows Alice and Bob as
   `up to date`.
+- [ ] Open the spreadsheet written during the setup. `Examiner` shows Emma for
+  Alice, Bob and Carol. Enter points in the exercise's column of Alice's row and
+  `Yes` under `Feedback given`: `Exercises Total`, `Total points` and
+  `Total grade` follow.
 
 ## Grade a group assignment (tester)
 
