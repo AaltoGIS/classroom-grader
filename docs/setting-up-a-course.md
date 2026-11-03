@@ -181,11 +181,12 @@ name = "Grading ISDA"
 exercises = { Ex1 = 20, Ex2 = 20, Ex3 = 20, Ex4 = 20, Ex5 = 15 }   # columns and their maximum points
 quizzes = ["Quiz1", "Quiz2", "Quiz3", "Quiz4"]
 quiz_max_points = 200
-quiz_pass_share = 0.45   # of quiz_max_points, the minimum to pass
-grade_limits = [0.85, 0.75, 0.65, 0.55, 0.45]   # grades 5, 4, 3, 2 and 1, as shares of all points
+quiz_pass_share = 0.5   # of quiz_max_points, the minimum to pass
+grade_limits = [0.9, 0.8, 0.7, 0.6, 0.5]   # grades 5, 4, 3, 2 and 1, as shares of all points
 ```
 
-Then, in the course folder, write the spreadsheet and split the students
+The last two lines show the defaults, so you can leave them out if they suit
+your course. Then, in the course folder, write the spreadsheet and split the students
 between the assistants, naming each with `--assistant`:
 
 ```

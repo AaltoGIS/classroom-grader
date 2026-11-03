@@ -7,7 +7,13 @@ import re
 from pathlib import Path
 
 from classroom_grader import GraderError, write_new
-from classroom_grader.settings import SETTINGS_FILE, Settings, parse_settings
+from classroom_grader.settings import (
+    DEFAULT_GRADE_LIMITS,
+    DEFAULT_QUIZ_PASS_SHARE,
+    SETTINGS_FILE,
+    Settings,
+    parse_settings,
+)
 
 HELP = "Write grader.toml, nbgrader_config.py and .gitignore for a course."
 DEFAULT_ROSTER = "student_info.csv"
@@ -193,8 +199,10 @@ def _settings_text(settings: Settings, roster: str) -> str:
         "# exercises = { Ex1 = 20, Ex2 = 20 }  # columns and their maximum points",
         '# quizzes = ["Quiz1", "Quiz2"]',
         "# quiz_max_points = 200",
-        "# quiz_pass_share = 0.45  # of quiz_max_points, the minimum to pass",
-        "# grade_limits = [0.85, 0.75, 0.65, 0.55, 0.45]  # shares for grades 5 to 1",
+        f"# quiz_pass_share = {DEFAULT_QUIZ_PASS_SHARE}  # the default, "
+        "of quiz_max_points, the minimum to pass",
+        f"# grade_limits = {list(DEFAULT_GRADE_LIMITS)}  # the default, "
+        "shares for grades 5 to 1",
     ]
     return "\n".join(lines) + "\n"
 

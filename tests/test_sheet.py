@@ -101,6 +101,15 @@ def test_every_student_gets_a_row_with_formulas(course, capsys):
     ]
 
 
+def test_left_out_thresholds_get_the_defaults(course):
+    table = GRADING_SHEET.split("quiz_pass_share")[0]
+    write_course(course, ROSTER.encode(), SETTINGS + table)
+    _, output = grading_sheet(course)
+    limits = [value for _, value in load_workbook(output)["Limits"].values]
+    assert limits[1] == "=B1*0.5"
+    assert limits[5:] == ["=B5*0.9", "=B5*0.8", "=B5*0.7", "=B5*0.6", "=B5*0.5"]
+
+
 @pytest.mark.parametrize(
     ("roster", "settings", "message"),
     [
