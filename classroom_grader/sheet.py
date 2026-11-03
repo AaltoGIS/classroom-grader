@@ -31,11 +31,26 @@ COLUMN_WIDTHS = {
     "Firstname": 27,
     "Examiner": 22,
     SHEET_FIRST_COLUMNS[-1]: 64,
+    "Feedback given": 18,
+    "Exercises Total": 16,
+    "Quizzes total": 18,
+    "Quiz points (scaled)": 22,
+    "Extra points (attendance)": 26,
+    "Total points": 22,
+    "Total grade": 22,
 }
-MIN_COLUMN_WIDTH = 9
-TOTAL_FILL = PatternFill("solid", fgColor="FFD0E0E3")
-GRADE_FILL = PatternFill("solid", fgColor="FFD9EAD3")
-GRADE_FONT = Font(size=13, bold=True)
+MIN_EXERCISE_WIDTH = 9
+MIN_QUIZ_WIDTH = 18
+COLUMN_COLOURS = {
+    "Examiner": "FFFFF2CC",
+    SHEET_FIRST_COLUMNS[-1]: "FFF4CCCC",
+    "Quiz points (scaled)": "FFF3F3F3",
+    "Extra points (attendance)": "FFF3F3F3",
+    "Total points": "FFD0E0E3",
+    "Total grade": "FFD9EAD3",
+}
+BOLD_FONT = Font(name="Calibri", size=11, bold=True)
+GRADE_FONT = Font(name="Calibri", size=13, bold=True, color="FFFF0000")
 # Rows of the limits sheet that the students' formulas read.
 SCALING_ROW = 4
 TOTAL_MAX_ROW = 5
@@ -131,8 +146,15 @@ def grading_workbook(spec: GradingSheet, students: list[Student]) -> Workbook:
     for number, name in enumerate(columns, start=1):
         cell = sheet.cell(1, number, name)
         cell.data_type = "s"  # a column name starting with "=" stays text
-        width = COLUMN_WIDTHS.get(name, max(len(name) + 2, MIN_COLUMN_WIDTH))
-        sheet.column_dimensions[get_column_letter(number)].width = width
+        cell.font = BOLD_FONT
+        column = sheet.column_dimensions[get_column_letter(number)]
+        minimum = MIN_QUIZ_WIDTH if name in spec.quizzes else MIN_EXERCISE_WIDTH
+        column.width = COLUMN_WIDTHS.get(name, max(len(name) + 4, minimum))
+        if name in COLUMN_COLOURS:
+            fill = PatternFill("solid", fgColor=COLUMN_COLOURS[name])
+            column.fill = fill  # also rows added by hand later
+            for row in range(1, len(students) + 2):
+                sheet.cell(row, number).fill = fill
     first_exercise = len(SHEET_FIRST_COLUMNS) + 1
     last_exercise = len(SHEET_FIRST_COLUMNS) + len(spec.exercises)
     exercises_total = last_exercise + 2
@@ -140,7 +162,6 @@ def grading_workbook(spec: GradingSheet, students: list[Student]) -> Workbook:
     last_quiz = exercises_total + len(spec.quizzes)
     quizzes_total = last_quiz + 1
     quiz_points, extra_points, total, grade = (quizzes_total + n for n in (1, 2, 3, 4))
-    sheet.cell(1, grade).fill = GRADE_FILL
     for row, student in enumerate(students, start=2):
         sheet.cell(row, 1, student.username)
         if student.grader is not None:
@@ -164,9 +185,9 @@ def grading_workbook(spec: GradingSheet, students: list[Student]) -> Workbook:
         points = [
             _cell_name(c, row) for c in (exercises_total, quiz_points, extra_points)
         ]
-        sheet.cell(row, total, f"={'+'.join(points)}").fill = TOTAL_FILL
+        sheet.cell(row, total, f"={'+'.join(points)}")
         cell = sheet.cell(row, grade, _grade_formula(_cell_name(total, row)))
-        cell.fill, cell.font = GRADE_FILL, GRADE_FONT
+        cell.font = GRADE_FONT
     sheet.freeze_panes = sheet.cell(2, len(SHEET_FIRST_COLUMNS))
     last = f"{get_column_letter(len(columns))}{len(students) + 1}"
     sheet.auto_filter.ref = f"A1:{last}"
@@ -206,4 +227,6 @@ def _write_limits(sheet: Worksheet, spec: GradingSheet) -> None:
     ]
     for row in rows:
         sheet.append(row)
+    sheet.cell(SCALING_ROW, 1).font = BOLD_FONT
+    sheet.cell(TOTAL_MAX_ROW, 1).font = BOLD_FONT
     sheet.column_dimensions["A"].width = 32
