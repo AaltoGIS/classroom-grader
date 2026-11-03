@@ -101,6 +101,32 @@ def test_every_student_gets_a_row_with_formulas(course, capsys):
     ]
 
 
+def test_the_sheet_has_bold_headers_and_coloured_columns(course):
+    write_course(course, ROSTER.encode())
+    _, output = grading_sheet(course)
+    workbook = load_workbook(output)
+    sheet = workbook.active
+    colours = {
+        "D": "FFFFF2CC",
+        "E": "FFF4CCCC",
+        "M": "FFF3F3F3",
+        "N": "FFF3F3F3",
+        "O": "FFD0E0E3",
+        "P": "FFD9EAD3",
+    }
+    for header in sheet[1]:
+        letter = header.column_letter
+        assert header.font.b
+        colour = colours.get(letter, "00000000")
+        assert header.fill.fgColor.rgb == colour
+        assert sheet[f"{letter}5"].fill.fgColor.rgb == colour
+    for letter, colour in colours.items():
+        assert sheet.column_dimensions[letter].fill.fgColor.rgb == colour
+    grade = sheet["P5"].font
+    assert (grade.b, grade.sz, grade.color.rgb) == (True, 13, "FFFF0000")
+    assert [c.row for c in workbook["Limits"]["A"] if c.font.b] == [4, 5]
+
+
 def test_left_out_thresholds_get_the_defaults(course):
     table = GRADING_SHEET.split("quiz_pass_share")[0]
     write_course(course, ROSTER.encode(), SETTINGS + table)
