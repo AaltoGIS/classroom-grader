@@ -29,15 +29,26 @@ Start menu), go to the folder where you saved the file, for example
 mamba env create -f environment.yml
 ```
 
-Activate it each time you start grading:
+This can take a long time. Activate the environment each time you start
+grading:
 
 ```
 conda activate grader
 ```
 
-To add the tool to another environment instead, run
+To check that the tool works, run `grader --version`, which prints a version
+number. When the teacher asks you to update the tool, run this with the
+environment active:
+
+```
+pip install --force-reinstall --no-deps git+https://github.com/AaltoGIS/classroom-grader
+```
+
+**Optional:** To add the tool to another environment instead (if you have one), run
 `pip install git+https://github.com/AaltoGIS/classroom-grader` in it. It needs
-Python 3.11 or newer and git.
+Python 3.11 or newer and git. The GitHub access steps below also need the
+[GitHub CLI](https://cli.github.com), and `grader source` needs nbgrader
+(`pip install nbgrader`).
 
 ### GitHub access
 
@@ -45,7 +56,7 @@ Do these steps once on each computer you grade on, in a terminal where the
 grading environment is active (`conda activate grader`).
 
 1. Create a GitHub account at <https://github.com/signup> if you do not have
-   one, and send your username to the teacher. The teacher adds you as a TA
+   one, and send your username to the teacher. The teacher adds you as a teaching assistant (TA)
    of the course in Classroom 50, and GitHub emails you an invitation to the
    course's organization (for example `IntroSDA-2026`): open it and accept.
 
@@ -81,7 +92,7 @@ grading environment is active (`conda activate grader`).
    ```
 
    It lists private repositories of the course, such as the students'
-   `introsda-exercise-1-<username>`, with your permission in each. Pushing
+   `isda-exercise-1-<username>`, with your permission in each. Pushing
    feedback needs `WRITE`, `MAINTAIN` or `ADMIN`. If the list is empty,
    accept the invitation from step 1; if it shows `READ` or `TRIAGE`, ask
    the teacher for write access. Classroom 50 gives TAs access to the
@@ -101,42 +112,72 @@ only if you cannot use the GitHub CLI or your course uses SSH
 ### The course folder
 
 You do all your grading in one folder on your computer, the course folder.
-The teacher keeps the files that `grader` needs in a private GitHub
-repository: the course settings (`grader.toml`), the list of students (the
-roster) and the settings for nbgrader. Your course folder is a
-copy of that repository. You make the copy once, after the GitHub access
-steps above.
+You do not create it yourself. The steps below download it from GitHub, and
+you do this once, after the GitHub access steps above.
+
+The folder is a copy of the course repository, a private repository on GitHub
+where the teacher keeps the files that `grader` needs: the course settings
+(`grader.toml`), the list of students (the roster) and the settings for
+nbgrader.
 
 1. Ask the teacher for the name of the course repository, for example
    `IntroSDA-2026/grading`.
 
-2. In a terminal with the grading environment active, go to the folder where
-   you want to keep your grading, for example `cd Documents`.
+2. In a terminal with the grading environment active, go to the place where
+   you want the course folder, for example your `Documents` folder:
 
-3. Copy the repository there (git calls this cloning), with your course's
-   repository name in the address:
+   ```
+   cd Documents
+   ```
+
+3. Clone the course repository. Put your course's
+   repository name in the address. The last word is the name of the new
+   folder, which you can choose yourself:
 
    ```
    git clone https://github.com/IntroSDA-2026/grading IntroSDA-2026
    ```
 
-   The last word, `IntroSDA-2026`, is the name of the new folder. You can
-   choose a different one.
+   If this fails, check the name with the teacher, and check that you have
+   accepted the invitation from the GitHub access steps.
 
-You now have the folder `IntroSDA-2026`. Each grading round starts by going
-into it (see [A grading round](#a-grading-round)).
+4. Go into the new folder and check that `grader` finds the course:
+
+   ```
+   cd IntroSDA-2026
+   grader students
+   ```
+
+   This lists the course's students.
+
+Run `grader` in this folder or a folder inside it. Anywhere else it stops with
+a message that starts `no grader.toml`. Each grading round starts by going into the folder (see
+[A grading round](#a-grading-round)).
 
 As you grade, `grader` and nbgrader add more folders here, such as
-`submitted/` with the students' work. Git leaves these out of the course
-repository, so they never get committed there by mistake.
+`submitted/` with the students' work. These stay out of the course repository,
+so the students' work does not end up there by mistake.
 
 ## A grading round
 
-Open a terminal (on Windows the Miniforge Prompt), activate the course
-environment, go to your course folder with `cd`, and get the teacher's latest
-changes to the settings and the roster:
+Start when the teacher tells you that an exercise is ready for grading. You
+need these from the teacher:
+
+- your name as the roster's `grader` column writes it,
+- the grading spreadsheet,
+- the exercise's grading template,
+- where the exercise's model solutions are, if not in its `-grading`
+  repository.
+
+Open a terminal (on Windows the Miniforge Prompt), activate the grading
+environment, go to your course folder, and get the teacher's latest changes to
+the settings and the roster. With the course folder from
+[The course folder](#the-course-folder), that is:
 
 ```
+conda activate grader
+cd Documents
+cd IntroSDA-2026
 git pull
 ```
 
@@ -167,11 +208,20 @@ it, every student in the roster is included. Name single students with
    because you have changed them locally, and, when the assignment has a
    deadline, students whose newest commit is later. Commits made with your git
    identity (`git config user.name` and `user.email`) do not count. Commit
-   times come from the students' computers, so take them as a hint.
+   times come from the students' computers, so take them as a hint. Tell the
+   teacher about students without a repository.
 
-3. Grade: run `jupyter lab` in the course folder, open the notebooks under
-   `submitted/`, and write the points and feedback into each student's
-   `README.md`.
+3. Grade. Run `jupyter lab` in the course folder and open each student's work
+   in `submitted/<username>/Exercise-3`, which holds notebooks or, in some
+   exercises, other files. Then open the `README.md` in the same folder, paste
+   the exercise's grading template into it, and fill in the points and your
+   written feedback. The student reads this `README.md` on GitHub after you
+   push it in step 5.
+
+   The model solutions are in the exercise's `-grading` repository or on Google
+   Drive, as the teacher tells you. To get them from the repository, run
+   `grader source Exercise-3`, which puts them in `source/Exercise-3`. That
+   folder stays out of the course repository.
 
 4. See what is left:
 
@@ -205,6 +255,13 @@ it, every student in the roster is included. Name single students with
    unstage staged files) and run `grader push` again. `conflict` means that
    the student changed the same lines as you; `grader push` leaves your commit
    in the clone, and you resolve it there with `git pull --rebase`.
+
+6. Enter the points in the grading spreadsheet. Your students have your name
+   under `Examiner`. Fill in the exercise's column, put `Yes` under
+   `Feedback given`, and write anything the teacher should look at under
+   `Comments / Requires Checking?`. The teacher fills in the quiz columns and
+   `Extra points (attendance)`, and the totals and the grade are calculated for
+   you.
 
 In a group assignment each team has one repository, and `grader` handles the
 teams the way it handles students. Classroom 50 numbers the teams: the

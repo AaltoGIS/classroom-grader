@@ -8,12 +8,33 @@ This page is for the teacher. Course assistants need only the
 The teacher does this once per course, in the GitHub organization of the
 course's Classroom 50 classroom.
 
-1. Add the assistants as TAs of the classroom in Classroom 50 (the
-   classroom's **Settings**, **Staff and roles**). GitHub sends each of them
-   an invitation to the organization, and they join the classroom's TA team,
-   `classroom50-<classroom>-ta`.
+1. On your computer, install `grader` as in the README's
+   [Installation](../README.md#installation), and follow steps 2 and 3 of
+   [GitHub access](../README.md#github-access) to log in to GitHub. Run the
+   commands below in a terminal where the grading environment is active
+   (`conda activate grader`); `command not found: grader` means it is not.
 
-2. Create a private repository for the course settings in the organization,
+   If you use uv instead, this gives you `grader` and nbgrader in every
+   terminal. Add `--force` to update an earlier install. If `grader` is still
+   not found, run `uv tool update-shell` and open a new terminal. uv cannot
+   install the GitHub CLI, so if `gh --version` fails, install it from
+   <https://cli.github.com>.
+
+   ```
+   uv tool install --with-executables-from nbgrader git+https://github.com/AaltoGIS/classroom-grader
+   ```
+
+2. Add the assistants as TAs of the classroom in Classroom 50, under **Staff
+   and roles** on the classroom's settings page,
+   `https://classroom50.org/<organization>/<classroom>/settings` (for example
+   `https://classroom50.org/IntroSDA-2026/isda/settings`). GitHub sends
+   each of them an invitation to the organization, and they join the
+   classroom's TA team, `classroom50-<classroom>-ta`. Do not invite them from
+   the organization's **People** page. It offers only the roles *Member* and
+   *Owner*. Neither adds them to the TA team, and *Owner* gives them full
+   control of the organization and all its repositories.
+
+3. Create a private repository for the course settings in the organization,
    for example `IntroSDA-2026/grading`: on <https://github.com/new>, choose
    the organization as the owner and *Private* as the visibility. Give the
    assistants read access: in the repository's **Settings**, **Collaborators
@@ -21,17 +42,35 @@ course's Classroom 50 classroom.
    `classroom50-<classroom>-hta`, if you have head TAs) with the role
    *Read*.
 
-3. Clone it as in [The course folder](../README.md#the-course-folder) and copy
-   the roster into the clone.
-
-4. In the clone, run:
+4. Clone the new repository where you want your course folder, for example in
+   `Documents`. Git warns that the repository is empty, which is expected at
+   this point:
 
    ```
-   grader init --organization IntroSDA-2026 --classroom introsda --roster student_info.csv --assignment Exercise-1 --assignment Exercise-2
+   cd Documents
+   git clone https://github.com/IntroSDA-2026/grading IntroSDA-2026
+   cd IntroSDA-2026
    ```
 
-   `--classroom` is the classroom's name in Classroom 50, the start of the
-   students' repository names (see [grader.toml](#gradertoml)). Values left
+5. Put the roster into this folder. On GitHub, open the organization's
+   `classroom50` repository, then the classroom's folder, then `roster.csv`.
+   Click **Download raw file** and move the file here. See
+   [The roster](#the-roster) for what it may contain.
+
+6. Write the course settings. Replace the organization and classroom with
+   your own, and list your own assignments. This example has five:
+
+   ```
+   grader init --organization IntroSDA-2026 --classroom isda --roster roster.csv --assignment Exercise-1 --assignment Exercise-2 --assignment Exercise-3 --assignment Exercise-4 --assignment Exercise-5
+   ```
+
+   `--roster` names the file from step 5, which must be in the folder. Give
+   `--assignment` once for each assignment, with its name in Classroom 50. To
+   add an assignment later, add its section to `grader.toml`, because
+   `grader init` does not run twice in the same folder (see
+   [grader.toml](#gradertoml)). `--classroom` is the classroom's name in Classroom 50, the start of the
+   students' repository names (see [grader.toml](#gradertoml)), and the same
+   name as in the settings page's address in step 2. Values left
    out are asked for. `grader init` writes `grader.toml`, a plain
    `nbgrader_config.py`, and a `.gitignore` that keeps the folders grader and
    nbgrader fill on each computer (`submitted/`, `source/`, `release/`,
@@ -40,23 +79,70 @@ course's Classroom 50 classroom.
    old one is kept as `nbgrader_config.py.bak`; an existing `.gitignore` gets
    the lines it lacks.
 
-5. Add deadlines and group assignments to `grader.toml` (see below), then
-   share the files:
+   Check that it worked. This lists the roster's students and none of the
+   staff:
 
    ```
-   git add grader.toml nbgrader_config.py .gitignore student_info.csv
+   grader students
+   ```
+
+7. Add deadlines and group assignments to `grader.toml` (see below).
+
+8. Write the grading spreadsheet and assign the students to the assistants.
+   First add the `[grading_sheet]` table to `grader.toml`, as in
+   [The grading spreadsheet](#the-grading-spreadsheet). Then this one command
+   does both, with each assistant named by `--assistant`:
+
+   ```
+   grader grading-sheet --output grading-2026.xlsx --assistant Emma --assistant Alvina
+   ```
+
+   It writes the spreadsheet with a row per student, and adds a `grader` column
+   with the same split to `roster.csv`. The assistants select their students
+   with these names, as in `--grader Emma`.
+
+9. Share the settings with the assistants:
+
+   ```
+   git add grader.toml nbgrader_config.py .gitignore roster.csv
    git commit -m "Add the course settings"
    git push
    ```
 
+10. Send each assistant what the README asks them to get from you:
+
+    - the link to the [README](../README.md),
+    - the name of the course repository, such as `IntroSDA-2026/grading`,
+    - their name as the roster's `grader` column writes it,
+    - the grading spreadsheet. It stays out of the repository, so share it
+      separately, somewhere all the assistants can edit the same copy, such as
+      Google Sheets.
+
 When you change `grader.toml` or the roster later, commit and push again; the
 assistants get the changes with `git pull`.
 
-Classroom 50 gives the TA team write access to the students' repositories
-when it collects the scores, not when a student accepts an assignment.
-Collect the scores (**Collect now** in Classroom 50) after the students have
-accepted, before the assistants run `grader fetch`; until then, `grader fetch`
-lists those students as having no repository.
+## Each exercise
+
+1. Release the exercise to the students (see
+   [Releasing an assignment](#releasing-an-assignment)) and add its deadline to
+   `grader.toml`.
+
+2. Write the exercise's grading template and share it with the assistants, for
+   example in a Google Doc. It is the text they paste into each student's
+   `README.md` and fill in with the points and feedback. Give them the model
+   solutions too: add the TA team with the role *Read* to the exercise's
+   `-grading` repository, as you did for the course repository, or share the
+   solutions on Google Drive and tell them where.
+
+3. Collect the scores (**Collect now** in Classroom 50) after the students have
+   accepted, before the assistants run `grader fetch`. Classroom 50 gives the
+   TA team write access to the students' repositories when it collects the
+   scores, not when a student accepts an assignment; until then, `grader fetch`
+   lists those students as having no repository. Collect again when students
+   accept later.
+
+4. Tell the assistants that they can start. They follow
+   [A grading round](../README.md#a-grading-round).
 
 ## Check the settings against GitHub
 
@@ -73,7 +159,7 @@ grader status Exercise-1
 - `grader students` lists every student of the roster and none of the staff.
 - `grader fetch` clones the repositories into `submitted/`. Its first line
   counts the students, for example `Exercise-1: 61 cloned, 4 no repo`. The
-  students listed under `No repo named introsda-exercise-1-<student>` have
+  students listed under `No repo named isda-exercise-1-<student>` have
   not accepted the assignment, or you cannot see their repositories.
   If nearly every student is listed there, compare that name with the
   students' repositories in the organization: a wrong `classroom` or
@@ -112,15 +198,15 @@ and every command reads it.
 
 ```toml
 organization = "IntroSDA-2026"
-classroom = "introsda"
-roster = "student_info.csv"
+classroom = "isda"
+roster = "roster.csv"
 # username_column = "user"   # found automatically when left out
 # grader = "Emma"            # default for --grader
 feedback_files = ["README.md"]
 # protocol = "ssh"           # for new clones; the default is "https"
 
 [assignments.Exercise-3]       # the name of the folders under submitted/ and source/
-# repo_prefix = "introsda-exercise-3"   # default: <classroom>-<name> in lower case
+# repo_prefix = "isda-exercise-3"   # default: <classroom>-<name> in lower case
 # source_repo = "IntroSDA-2026/Exercise-3-grading"   # default: <organization>/<name>-grading
 deadline = 2026-11-13T23:59:00+02:00
 
@@ -131,7 +217,7 @@ source_repo = "IntroSDA-2026/Final-assignment"
 
 Classroom 50 names a student's repository
 `<classroom>-<assignment>-<username>` in lower case, for example
-`introsda-exercise-3-alice`. `repo_prefix` is the part before the username;
+`isda-exercise-3-alice`. `repo_prefix` is the part before the username;
 it defaults to `<classroom>-<name>` in lower case, so set it only when the
 assignment's name in Classroom 50 differs from the folder name. Without
 `classroom`, the default is the name in lower case.
@@ -168,6 +254,30 @@ the student version into `release/Exercise-3`. nbgrader leaves an existing
 release alone unless you add `--force`. A notebook without nbgrader metadata
 is copied unchanged. `grader source` never pushes anything.
 
+To publish the student version, put it in the exercise's student repository,
+for example `IntroSDA-2026/Exercise-3`. `source/` holds the solutions, so never
+push it to a repository that students can see.
+
+1. Clone the student repository next to the course folder, not inside it:
+
+   ```
+   cd ..
+   git clone https://github.com/IntroSDA-2026/Exercise-3
+   ```
+
+2. Copy the files of `release/Exercise-3` into the new `Exercise-3` folder, for
+   example in your file manager, replacing the older versions. Delete any
+   earlier exercise files that the new release no longer has.
+
+3. Commit and push them:
+
+   ```
+   cd Exercise-3
+   git add .
+   git commit -m "Add Exercise 3"
+   git push
+   ```
+
 ## The grading spreadsheet
 
 `grader grading-sheet` writes the course's grading spreadsheet, with a row for
@@ -196,9 +306,10 @@ grader grading-sheet --output grading-2026.xlsx --assistant Emma --assistant Alv
 The spreadsheet must not exist yet. It has two sheets:
 
 - The first has a row per student, in roster order, with the username, the
-  assistant under `Examiner`, and empty points. Formulas add up the exercises
-  and the quizzes, scale the quiz points so that all quizzes together weigh as
-  much as all exercises, add the points in `Extra points (attendance)`, and
+  assistant under `Examiner`, and empty points. The assistants fill in the
+  exercises, and you fill in the quizzes and `Extra points (attendance)`.
+  Formulas add up the exercises and the quizzes, scale the quiz points so that
+  all quizzes together weigh as much as all exercises, add the extra points, and
   give the grade.
 - `Limits` holds the maximum points and the grade limits, on a sheet of their
   own so that sorting the students does not move them. Change a value there and
