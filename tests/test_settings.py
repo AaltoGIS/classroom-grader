@@ -210,5 +210,6 @@ def test_course_root_is_found_from_a_subfolder(course, tmp_path, monkeypatch):
     subfolder.mkdir(parents=True)
     monkeypatch.chdir(subfolder)
     assert find_course_root(Path(".")) == course.resolve()
-    with pytest.raises(GraderError, match="run grader init or pass --course"):
+    message = "go to your course folder or pass --course; to start a new course"
+    with pytest.raises(GraderError, match=message):
         find_course_root(tmp_path)

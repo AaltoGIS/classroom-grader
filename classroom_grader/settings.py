@@ -79,8 +79,8 @@ def find_course_root(start: Path) -> Path:
         if (folder / SETTINGS_FILE).is_file():
             return folder
     raise GraderError(
-        f"no {SETTINGS_FILE} in {start} or its parent folders; "
-        "run grader init or pass --course"
+        f"no {SETTINGS_FILE} in {start} or its parent folders; go to your course "
+        "folder or pass --course; to start a new course, run grader init"
     )
 
 
