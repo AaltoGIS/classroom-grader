@@ -1,5 +1,6 @@
 """Course settings: find, read and check ``grader.toml``."""
 
+import math
 import re
 import tomllib
 import unicodedata
@@ -15,7 +16,27 @@ SETTINGS_FILE = "grader.toml"
 DEFAULT_FEEDBACK_FILES = ("README.md",)
 ASSIGNMENT_TYPES = ("individual", "group")
 PROTOCOLS = ("https", "ssh")
+GRADES = 5
+LIMITS_SHEET = "Limits"
+# The spreadsheet's columns around the exercises and the quizzes.
+SHEET_FIRST_COLUMNS = (
+    "user",
+    "Lastname",
+    "Firstname",
+    "Examiner",
+    "Comments / Requires Checking?",
+)
+SHEET_MIDDLE_COLUMNS = ("Feedback given", "Exercises Total")
+SHEET_LAST_COLUMNS = (
+    "Quizzes total",
+    "Quiz points (scaled)",
+    "Extra points (attendance)",
+    "Total points",
+    "Total grade",
+)
 
+_EXCEL_SHEET_FORBIDDEN = set("[]:*?/\\")
+_EXCEL_SHEET_MAX_LENGTH = 31
 _GITHUB_OWNER = re.compile(r"[A-Za-z0-9-]+")
 _GITHUB_REPO = re.compile(r"[A-Za-z0-9._-]+")
 _OWNER_AND_REPO = re.compile(rf"{_GITHUB_OWNER.pattern}/{_GITHUB_REPO.pattern}")
@@ -54,6 +75,18 @@ class Assignment:
 
 
 @dataclass(frozen=True)
+class GradingSheet:
+    """The ``[grading_sheet]`` table: what ``grader grading-sheet`` writes."""
+
+    name: str
+    exercises: dict[str, int | float]
+    quizzes: tuple[str, ...]
+    quiz_max_points: int | float
+    quiz_pass_share: int | float
+    grade_limits: tuple[int | float, ...]
+
+
+@dataclass(frozen=True)
 class Settings:
     """The checked contents of ``grader.toml``, with defaults filled in."""
 
@@ -66,10 +99,12 @@ class Settings:
     feedback_files: tuple[str, ...]
     protocol: str
     assignments: dict[str, Assignment]
+    grading_sheet: GradingSheet | None
 
 
 SETTING_KEYS = {field.name for field in fields(Settings)} - {"root"}
 ASSIGNMENT_KEYS = {field.name for field in fields(Assignment)} - {"name"}
+GRADING_SHEET_KEYS = {field.name for field in fields(GradingSheet)}
 
 
 def find_course_root(start: Path) -> Path:
@@ -133,6 +168,7 @@ def parse_settings(
     assignments = _assignments(
         data.get("assignments", {}), organization, classroom, problems
     )
+    grading_sheet = _grading_sheet(data.get("grading_sheet"), problems)
     if problems:
         raise SettingsError(problems, source)
     return Settings(
@@ -145,6 +181,7 @@ def parse_settings(
         feedback_files=feedback_files,
         protocol=protocol,
         assignments=assignments,
+        grading_sheet=grading_sheet,
     )
 
 
@@ -256,6 +293,108 @@ def _assignments(
             problems.append(f"{label}.deadline: add a time zone, such as +02:00")
         assignments[name] = Assignment(name, kind, repo_prefix, source_repo, deadline)
     return assignments
+
+
+def _grading_sheet(table: Any, problems: list[str]) -> GradingSheet | None:
+    """Check the ``[grading_sheet]`` table; None when the course has none."""
+    if table is None:
+        return None
+    if not isinstance(table, dict):
+        problems.append("grading_sheet: must be a table")
+        return None
+    label = "grading_sheet."
+    problems_before = len(problems)
+    problems.extend(
+        f"{label}{printable(key)}: unknown setting"
+        for key in sorted(table.keys() - GRADING_SHEET_KEYS)
+    )
+    name = _string(table, "name", problems, label, required=True)
+    if name is not None and (
+        len(name) > _EXCEL_SHEET_MAX_LENGTH
+        or _EXCEL_SHEET_FORBIDDEN & set(name)
+        or name.strip("'") != name
+        or name.casefold() == LIMITS_SHEET.casefold()
+    ):
+        forbidden = " ".join(sorted(_EXCEL_SHEET_FORBIDDEN))
+        problems.append(
+            f"{label}name: {name!r} cannot name the sheet: it needs at most "
+            f"{_EXCEL_SHEET_MAX_LENGTH} characters, none of {forbidden}, no ' at "
+            f"either end, and another name than {LIMITS_SHEET}"
+        )
+    exercises = table.get("exercises")
+    exercises_valid = (
+        isinstance(exercises, dict)
+        and bool(exercises)
+        and all(_is_column_name(name) for name in exercises)
+        and all(_is_positive(points) for points in exercises.values())
+    )
+    if not exercises_valid:
+        problems.append(
+            f"{label}exercises: must give each column its maximum points, "
+            "such as { Ex1 = 20 }"
+        )
+    quizzes = table.get("quizzes")
+    quizzes_valid = (
+        isinstance(quizzes, list)
+        and bool(quizzes)
+        and all(_is_column_name(name) for name in quizzes)
+    )
+    if not quizzes_valid:
+        problems.append(f"{label}quizzes: must be a list of column names")
+    if exercises_valid and quizzes_valid:
+        columns = [
+            *SHEET_FIRST_COLUMNS,
+            *exercises,
+            *SHEET_MIDDLE_COLUMNS,
+            *quizzes,
+            *SHEET_LAST_COLUMNS,
+        ]
+        if len({column.strip().casefold() for column in columns}) < len(columns):
+            problems.append(
+                "grading_sheet: each exercise and quiz needs a column name of its "
+                "own, also different from the sheet's other columns"
+            )
+    quiz_max_points = table.get("quiz_max_points")
+    if not _is_positive(quiz_max_points):
+        problems.append(f"{label}quiz_max_points: must be a number above 0")
+    quiz_pass_share = table.get("quiz_pass_share")
+    if not _is_share(quiz_pass_share):
+        problems.append(f"{label}quiz_pass_share: must be above 0 and at most 1")
+    limits = table.get("grade_limits")
+    if (
+        not isinstance(limits, list)
+        or len(limits) != GRADES
+        or not all(_is_share(share) for share in limits)
+        or limits != sorted(set(limits), reverse=True)
+    ):
+        problems.append(
+            f"{label}grade_limits: must be {GRADES} shares of the total points, "
+            "above 0 and at most 1, for grades 5 to 1, highest first"
+        )
+    if len(problems) > problems_before:
+        return None
+    return GradingSheet(
+        name, exercises, tuple(quizzes), quiz_max_points, quiz_pass_share, tuple(limits)
+    )
+
+
+def _is_column_name(value: Any) -> bool:
+    """Tell whether ``value`` is printable text that can head a spreadsheet column."""
+    return isinstance(value, str) and bool(value.strip()) and value.isprintable()
+
+
+def _is_positive(value: Any) -> bool:
+    """Tell whether ``value`` is a finite number above 0."""
+    return (
+        isinstance(value, int | float)
+        and not isinstance(value, bool)
+        and 0 < value < math.inf
+    )
+
+
+def _is_share(value: Any) -> bool:
+    """Tell whether ``value`` is a number above 0 and at most 1."""
+    return _is_positive(value) and value <= 1
 
 
 def _invalid(label: str, key: str, value: str, given: str | None, kind: str) -> str:

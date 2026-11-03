@@ -186,6 +186,16 @@ def _settings_text(settings: Settings, roster: str) -> str:
             f"# source_repo = {_toml_string(assignment.source_repo)}  # the default",
             "# deadline = 2026-12-31T23:59:00+02:00",
         ]
+    lines += [
+        "",
+        "# [grading_sheet]  # for grader grading-sheet",
+        '# name = "Grading"',
+        "# exercises = { Ex1 = 20, Ex2 = 20 }  # columns and their maximum points",
+        '# quizzes = ["Quiz1", "Quiz2"]',
+        "# quiz_max_points = 200",
+        "# quiz_pass_share = 0.45  # of quiz_max_points, the minimum to pass",
+        "# grade_limits = [0.85, 0.75, 0.65, 0.55, 0.45]  # shares for grades 5 to 1",
+    ]
     return "\n".join(lines) + "\n"
 
 
