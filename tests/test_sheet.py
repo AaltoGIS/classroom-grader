@@ -1,11 +1,7 @@
 import os
-import zipfile
 
 import pytest
-from openpyxl import Workbook, load_workbook
-from openpyxl.comments import Comment
-from openpyxl.styles import PatternFill
-from openpyxl.worksheet.formula import ArrayFormula
+from openpyxl import load_workbook
 
 from classroom_grader import cli
 
@@ -14,126 +10,123 @@ ROSTER = (
     "alice,student,Emma\nemma-v,ta,\nbob,student,\ncarol,student,Alvina\n"
     "dave,student,=1+1\n"
 )
-SETTINGS = 'organization = "IntroSDA-2026"\nroster = "student_info.csv"\n'
-FILL = "FFFFF2CC"
+SETTINGS = 'organization = "IntroSDA-2026"\nroster = "roster.csv"\n'
+GRADING_SHEET = """
+[grading_sheet]
+name = "Teacher's grading"
+exercises = { Ex1 = 20, Ex2 = 15 }
+quizzes = ["Quiz1", "Quiz2"]
+quiz_max_points = 100
+quiz_pass_share = 0.4
+grade_limits = [0.9, 0.8, 0.7, 0.6, 0.5]
+"""
+HEADERS = (
+    "user",
+    "Lastname",
+    "Firstname",
+    "Examiner",
+    "Comments / Requires Checking?",
+    "Ex1",
+    "Ex2",
+    "Feedback given",
+    "Exercises Total",
+    "Quiz1",
+    "Quiz2",
+    "Quizzes total",
+    "Quiz points (scaled)",
+    "Extra points (attendance)",
+    "Total points",
+    "Total grade",
+)
 
 
-@pytest.fixture
-def template(tmp_path):
-    """A grading template: headers, an example row and a pass limit in row 7."""
-    workbook = Workbook()
-    sheet = workbook.active
-    sheet.title = "Grading"
-    sheet.append(["user", "Lastname", "Examiner", "Ex1", "Ex2", "Total", "Pass"])
-    sheet.append(["me", "=Me", '="TA Smith"', 10, 9, "=SUM(D2:E2)", None])
-    sheet["A2"].hyperlink = "https://github.com/me"
-    sheet["G2"] = ArrayFormula("G2", "=IF(F2>=B$7,1,0)")
-    sheet["B2"].data_type = "s"  # text that looks like a formula
-    sheet["C2"].fill = PatternFill("solid", fgColor=FILL)
-    sheet.row_dimensions[2].height = 30
-    sheet.row_dimensions[4].hidden = True
-    sheet["A7"], sheet["B7"] = "Pass limit", 15
-    workbook.create_sheet("Notes")["A1"] = "Kept as it is"
-    path = tmp_path / "template.xlsx"
-    workbook.save(path)
+def write_course(course, roster, settings=SETTINGS + GRADING_SHEET):
+    """Write the course's settings and roster and return the roster's path."""
+    (course / "grader.toml").write_text(settings, encoding="utf-8")
+    path = course.resolve() / "roster.csv"
+    path.write_bytes(roster)
     return path
 
 
-def test_every_student_gets_the_example_rows_formulas(course, template, capsys):
-    (course / "student_info.csv").write_text(ROSTER, encoding="utf-8")
-    (course / "grader.toml").write_text(SETTINGS, encoding="utf-8")
+def grading_sheet(course, *options):
+    """Run ``grader grading-sheet`` in ``course``; return exit code and output path."""
     output = course / "grading.xlsx"
-    args = ["--template", str(template), "--output", str(output)]
-    assert cli.main(["grading-sheet", *args, "--course", str(course)]) == 0
+    args = ["--output", str(output), "--course", str(course), *options]
+    return cli.main(["grading-sheet", *args]), output
+
+
+def test_every_student_gets_a_row_with_formulas(course, capsys):
+    write_course(course, ROSTER.encode())
+    code, output = grading_sheet(course)
+    assert code == 0
     assert capsys.readouterr().out == f"Wrote {output}: 4 students\n"
 
     workbook = load_workbook(output)
-    sheet = workbook["Grading"]
-    rows = sheet.iter_rows(min_row=2, max_row=6, max_col=6, values_only=True)
-    assert list(rows) == [
-        ("alice", None, "Emma", None, None, "=SUM(D2:E2)"),
-        ("bob", None, None, None, None, "=SUM(D3:E3)"),
-        ("carol", None, "Alvina", None, None, "=SUM(D4:E4)"),
-        ("dave", None, "=1+1", None, None, "=SUM(D5:E5)"),
-        (None, None, None, None, None, None),
+    assert workbook.sheetnames == ["Teacher's grading", "Limits"]
+    sheet = workbook.active
+    assert next(sheet.values) == HEADERS
+    assert [row[:7] for row in sheet.iter_rows(min_row=2, values_only=True)] == [
+        ("alice", None, None, "Emma", None, None, None),
+        ("bob", None, None, None, None, None, None),
+        ("carol", None, None, "Alvina", None, None, None),
+        ("dave", None, None, "=1+1", None, None, None),
     ]
-    assert sheet["C5"].data_type == "s"
-    assert sheet["A2"].hyperlink is None
-    passed = sheet["G4"].value
-    assert (passed.ref, passed.text) == ("G4", "=IF(F4>=B$7,1,0)")
-    assert sheet["C4"].fill.fgColor.rgb == FILL
-    assert sheet.row_dimensions[4].height == 30
-    assert not sheet.row_dimensions[4].hidden
-    assert (sheet["A7"].value, sheet["B7"].value) == ("Pass limit", 15)
-    assert workbook["Notes"]["A1"].value == "Kept as it is"
+    assert sheet["D5"].data_type == "s"
+    grade = "0"
+    for points, row in zip(range(1, 6), range(10, 5, -1), strict=True):
+        grade = f"IF(O3>=Limits!B${row},{points},{grade})"
+    assert [sheet[f"{column}3"].value for column in "HIJKLMNOP"] == [
+        None,
+        "=SUM(F3:G3)",
+        None,
+        None,
+        "=SUM(J3:K3)",
+        "=L3*Limits!B$4",
+        None,
+        "=I3+M3+N3",
+        f"={grade}",
+    ]
+    assert (sheet.freeze_panes, sheet.auto_filter.ref) == ("E2", "A1:P5")
+    assert [value for _, value in workbook["Limits"].values] == [
+        100,
+        "=B1*0.4",
+        "=20+15",
+        "=B3/B1",
+        "=B3+B1*B4",
+        "=B5*0.9",
+        "=B5*0.8",
+        "=B5*0.7",
+        "=B5*0.6",
+        "=B5*0.5",
+    ]
 
 
 @pytest.mark.parametrize(
-    ("roster", "case", "message"),
+    ("roster", "settings", "message"),
     [
-        (
-            "user\n" + "".join(f"s{n}\n" for n in range(6)),
-            "",
-            "Grading!A7 is not empty, but the 6 students need rows 2-7",
-        ),
-        ("user\n", "", "the roster has no students"),
-        ("user\nalice\n", "output exists", "grading.xlsx exists already"),
-        ("user\nalice\n", "no username column", "no sheet has a username column"),
-        ("user\nalice\nbob\n", "merged", "Grading!A3:B3 is merged"),
-        ("user\nalice\nbob\n", "comment", "Grading!B3 is not empty"),
-        ("user\nalice\n", "damaged", "is not an Excel workbook"),
-        ("user\nalice\n", "array over rows", "Grading!G2: an array formula over"),
-        ("user\nalice\n", "unreadable formula", "Grading!F2: the formula cannot be"),
+        (b"user\n", SETTINGS + GRADING_SHEET, "the roster has no students"),
+        (b"user\nalice\n", SETTINGS + GRADING_SHEET, "grading.xlsx exists already"),
+        (b"user\nalice\n", SETTINGS, "has no [grading_sheet] table"),
     ],
 )
-def test_refusals_write_nothing(tmp_path, template, capsys, roster, case, message):
-    roster_path = tmp_path / "roster.csv"
-    roster_path.write_text(roster, encoding="utf-8")
-    output = tmp_path / "grading.xlsx"
-    if case == "output exists":
+def test_refusals_leave_the_output_alone(course, capsys, roster, settings, message):
+    write_course(course, roster, settings)
+    output = course / "grading.xlsx"
+    if "exists" in message:
         output.write_bytes(b"old")
-    if case in (
-        "no username column",
-        "merged",
-        "comment",
-        "array over rows",
-        "unreadable formula",
-    ):
-        workbook = load_workbook(template)
-        sheet = workbook["Grading"]
-        if case == "no username column":
-            sheet["A1"] = "student"
-        if case == "merged":
-            sheet.merge_cells("A3:B3")
-        if case == "comment":
-            sheet["B3"].comment = Comment("Old note", "Teacher")
-        if case == "array over rows":
-            sheet["G2"] = ArrayFormula("G2:G3", "=F2:F3*2")
-        if case == "unreadable formula":
-            sheet["F2"] = "=D2#"
-        workbook.save(template)
-    if case == "damaged":
-        template = tmp_path / "damaged.xlsx"
-        with zipfile.ZipFile(template, "w") as archive:
-            archive.writestr("[Content_Types].xml", "<unclosed")
-    args = ["--template", str(template), "--output", str(output)]
-    assert cli.main(["grading-sheet", *args, "--roster", str(roster_path)]) == 1
+    assert grading_sheet(course)[0] == 1
     assert message in capsys.readouterr().err
-    assert (
-        output.read_bytes() == b"old"
-        if case == "output exists"
-        else not output.exists()
-    )
+    assert output.read_bytes() == b"old" if "exists" in message else not output.exists()
 
 
 @pytest.mark.parametrize(
     ("roster", "written"),
     [
         (
-            '\ufeffusername,role,"full\nname"\r\nteach,teacher,T\r\n'
+            '﻿username,role,"full\nname"\r\nteach,teacher,T\r\n'
             "s1,student,Väinö\r\ns2,student,\r\ns3,student,\r\ns4,student,\r\n"
             "s5,student,,extra\r\n",
-            '\ufeffusername,role,"full\nname",,grader\r\nteach,teacher,T\r\n'
+            '﻿username,role,"full\nname",,grader\r\nteach,teacher,T\r\n'
             "s1,student,Väinö,,Emma\r\ns2,student,,,Emma\r\ns3,student,,,Emma\r\n"
             "s4,student,,,Alvina\r\ns5,student,,extra,Alvina\r\n",
         ),
@@ -150,21 +143,17 @@ def test_refusals_write_nothing(tmp_path, template, capsys, roster, case, messag
         ),
     ],
 )
-def test_assistants_split_the_students_in_blocks(
-    tmp_path, template, capsys, roster, written
-):
-    roster_path = tmp_path / "roster.csv"
-    roster_path.write_bytes(roster.encode())
-    output = tmp_path / "grading.xlsx"
-    args = ["--template", str(template), "--output", str(output)]
+def test_assistants_split_the_students_in_blocks(course, capsys, roster, written):
+    roster_path = write_course(course, roster.encode())
     split = ["--assistant", "Emma", "--assistant", "Alvina"]
-    assert cli.main(["grading-sheet", *args, "--roster", str(roster_path), *split]) == 0
+    code, output = grading_sheet(course, *split)
+    assert code == 0
     assert capsys.readouterr().out == (
         f"Wrote {output}: 5 students\n"
         f"Wrote the graders into {roster_path}: Emma 3, Alvina 2\n"
     )
-    sheet = load_workbook(output)["Grading"]
-    examiners = [sheet.cell(row, 3).value for row in range(2, 7)]
+    sheet = load_workbook(output).active
+    examiners = [sheet.cell(row, 4).value for row in range(2, 7)]
     assert examiners == ["Emma", "Emma", "Emma", "Alvina", "Alvina"]
     assert roster_path.read_bytes() == written.encode()
 
@@ -172,15 +161,14 @@ def test_assistants_split_the_students_in_blocks(
 @pytest.mark.skipif(
     os.name == "nt", reason="symbolic links need extra rights on Windows"
 )
-def test_a_linked_roster_gets_the_graders_in_the_file_it_points_to(tmp_path, template):
+def test_a_linked_roster_gets_the_graders_in_the_file_it_points_to(course, tmp_path):
+    link = write_course(course, b"")
+    link.unlink()
     target = tmp_path / "shared" / "roster.csv"
     target.parent.mkdir()
     target.write_bytes(b"user\nalice\n")
-    link = tmp_path / "roster.csv"
     link.symlink_to(target)
-    output = tmp_path / "grading.xlsx"
-    args = ["--template", str(template), "--output", str(output), "--roster", str(link)]
-    assert cli.main(["grading-sheet", *args, "--assistant", "Emma"]) == 0
+    assert grading_sheet(course, "--assistant", "Emma")[0] == 0
     assert link.is_symlink()
     assert target.read_bytes() == b"user,grader\nalice,Emma\n"
 
@@ -192,27 +180,19 @@ def test_a_linked_roster_gets_the_graders_in_the_file_it_points_to(tmp_path, tem
         (b"user\nalice\n", ["Emma", " emma "], "a different, non-empty name each time"),
         ("user,name\nalice,Väinö\n".encode("cp1252"), ["日本"], "its encoding, cp1252"),
         (b"user\nalice\n", ["Emma"], "disk full"),
-        (b"user\nalice\n", ["Emma"], "no sheet with students has a grader"),
     ],
 )
 def test_assistant_refusals_change_nothing(
-    tmp_path, template, capsys, monkeypatch, roster, assistants, message
+    course, capsys, monkeypatch, roster, assistants, message
 ):
     def full_disk(path, content):
         raise OSError("disk full")
 
     if message == "disk full":
         monkeypatch.setattr("classroom_grader.sheet.replace_file", full_disk)
-    if message.startswith("no sheet"):
-        workbook = load_workbook(template)
-        workbook["Grading"]["C1"] = "Notes"
-        workbook.save(template)
-    roster_path = tmp_path / "roster.csv"
-    roster_path.write_bytes(roster)
-    output = tmp_path / "grading.xlsx"
-    args = ["--template", str(template), "--output", str(output)]
+    roster_path = write_course(course, roster)
     split = [option for name in assistants for option in ("--assistant", name)]
-    assert cli.main(["grading-sheet", *args, "--roster", str(roster_path), *split]) == 1
+    assert grading_sheet(course, *split)[0] == 1
     assert message in capsys.readouterr().err
     assert roster_path.read_bytes() == roster
-    assert not output.exists()
+    assert not (course / "grading.xlsx").exists()

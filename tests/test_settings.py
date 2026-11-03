@@ -163,6 +163,48 @@ deadline = 2026-11-13T23:59:00+02:00
             BASE + 'assignments = ["Ex-1"]\n',
             ["assignments: must be a table of assignment tables"],
         ),
+        (BASE + "grading_sheet = 1\n", ["grading_sheet: must be a table"]),
+        (
+            BASE
+            + '[grading_sheet]\nname = "a"\n'
+            + 'exercises = { Ex1 = 20, "Total grade" = 5 }\n'
+            + 'quizzes = ["Quiz1"]\nquiz_max_points = 200\nquiz_pass_share = 0.45\n'
+            + "grade_limits = [0.85, 0.75, 0.65, 0.55, 0.45]\n",
+            [
+                "grading_sheet: each exercise and quiz needs a column name of its "
+                "own, also different from the sheet's other columns",
+            ],
+        ),
+        (
+            BASE
+            + '[grading_sheet]\nname = "\'a"\nexercises = { Ex1 = 20 }\n'
+            + 'quizzes = ["Quiz1"]\nquiz_max_points = 200\nquiz_pass_share = 0.45\n'
+            + "grade_limits = [0.85, 0.75, 0.65, 0.55, 0.45]\n",
+            [
+                'grading_sheet.name: "\'a" cannot name the sheet: it needs at most '
+                "31 characters, none of * / : ? [ \\ ], no ' at either end, and "
+                "another name than Limits",
+            ],
+        ),
+        (
+            BASE
+            + '[grading_sheet]\ncolour = "red"\nname = "a:b"\nexercises = { Ex1 = 0 }\n'
+            + "quizzes = []\nquiz_max_points = true\nquiz_pass_share = 1.5\n"
+            + "grade_limits = [0.5, 0.6, 0.4, 0.3, 0.2]\n",
+            [
+                "grading_sheet.colour: unknown setting",
+                "grading_sheet.name: 'a:b' cannot name the sheet: it needs at most "
+                "31 characters, none of * / : ? [ \\ ], no ' at either end, and "
+                "another name than Limits",
+                "grading_sheet.exercises: must give each column its maximum points, "
+                "such as {{ Ex1 = 20 }}",
+                "grading_sheet.quizzes: must be a list of column names",
+                "grading_sheet.quiz_max_points: must be a number above 0",
+                "grading_sheet.quiz_pass_share: must be above 0 and at most 1",
+                "grading_sheet.grade_limits: must be 5 shares of the total points, "
+                "above 0 and at most 1, for grades 5 to 1, highest first",
+            ],
+        ),
     ],
 )
 def test_invalid_settings_report_every_problem(course, text, problems):

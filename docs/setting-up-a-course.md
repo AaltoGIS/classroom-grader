@@ -105,9 +105,10 @@ Classroom 50: when students join later, copy the new rows and push again.
 ## grader.toml
 
 `grader.toml` is the course's settings file, in the course folder: the
-GitHub organization and Classroom 50 classroom, the roster file, and the
-assignments with their repository names and deadlines. `grader init` writes
-it, and every command reads it.
+GitHub organization and Classroom 50 classroom, the roster file, the
+assignments with their repository names and deadlines, and
+[the grading spreadsheet](#the-grading-spreadsheet). `grader init` writes it,
+and every command reads it.
 
 ```toml
 organization = "IntroSDA-2026"
@@ -169,44 +170,40 @@ is copied unchanged. `grader source` never pushes anything.
 
 ## The grading spreadsheet
 
-`grader grading-sheet` writes the course's grading spreadsheet from an Excel
-template, with a row for every student in the roster:
+`grader grading-sheet` writes the course's grading spreadsheet, with a row for
+every student in the roster. What the spreadsheet holds comes from the
+`[grading_sheet]` table in `grader.toml`, so you can write it again at any time.
+Add the table at the end of the file:
+
+```toml
+[grading_sheet]
+name = "Grading ISDA"
+exercises = { Ex1 = 20, Ex2 = 20, Ex3 = 20, Ex4 = 20, Ex5 = 15 }   # columns and their maximum points
+quizzes = ["Quiz1", "Quiz2", "Quiz3", "Quiz4"]
+quiz_max_points = 200
+quiz_pass_share = 0.45   # of quiz_max_points, the minimum to pass
+grade_limits = [0.85, 0.75, 0.65, 0.55, 0.45]   # grades 5, 4, 3, 2 and 1, as shares of all points
+```
+
+Then, in the course folder, write the spreadsheet and split the students
+between the assistants, naming each with `--assistant`:
 
 ```
-grader grading-sheet --template grading-template.xlsx --output grading-2026.xlsx
+grader grading-sheet --output grading-2026.xlsx --assistant Emma --assistant Alvina
 ```
 
-It uses the roster of the course folder; `--roster roster.csv` names another
-file. The spreadsheet must not exist yet. The template is an Excel workbook
-(`.xlsx`); from Google Sheets, save one with **File**, **Download**,
-**Microsoft Excel**.
+The spreadsheet must not exist yet. It has two sheets:
 
-In each sheet whose first row has a username column (`user`, `username`,
-`github`, `github_name` or `githubname`):
+- The first has a row per student, in roster order, with the username, the
+  assistant under `Examiner`, and empty points. Formulas add up the exercises
+  and the quizzes, scale the quiz points so that all quizzes together weigh as
+  much as all exercises, add the points in `Extra points (attendance)`, and
+  give the grade.
+- `Limits` holds the maximum points and the grade limits, on a sheet of their
+  own so that sorting the students does not move them. Change a value there and
+  every student's grade follows.
 
-- Row 1 holds the headers and row 2 is an example row, for example with your
-  own username and made-up points.
-- Each student gets a row, from row 2 down, in roster order, with the example
-  row's formulas and formatting but none of its plain values, so the points
-  start empty. A formula moves with its row: `=SUM(F2:J2)` becomes
-  `=SUM(F3:J3)` in row 3, while a reference with `$`, such as `B$71`, keeps
-  pointing at the same cell.
-- The username column gets the username, and a column headed `grader` or
-  `Examiner` gets the student's grader from the roster.
-- The students fill the rows from row 2 down, so those rows must be empty
-  below the example row: with 65 students, rows 3 to 66. If something is
-  there, such as a table of grade limits or a merged cell, `grader` stops and
-  names the cell: move it further down, or to a sheet of its own.
-
-Other sheets are copied as they are. Charts and pictures in the template may
-be lost.
-
-To split the students between the assistants at the same time, name each
-assistant with `--assistant`:
-
-```
-grader grading-sheet --template grading-template.xlsx --output grading-2026.xlsx --assistant Emma --assistant Alvina
-```
+Without `--assistant`, `Examiner` comes from the roster's `grader` column.
 
 The students are split into blocks in roster order, the first ones to Emma
 and the rest to Alvina, so that the numbers differ by at most one. The

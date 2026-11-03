@@ -2,52 +2,50 @@
 
 import argparse
 import io
-import zipfile
 from collections import Counter
-from copy import copy
 from pathlib import Path
 
-from openpyxl import Workbook, load_workbook
-from openpyxl.cell.cell import Cell
-from openpyxl.formula.tokenizer import TokenizerError
-from openpyxl.formula.translate import Translator
-from openpyxl.utils.cell import get_column_letter, range_boundaries
-from openpyxl.utils.exceptions import InvalidFileException
-from openpyxl.worksheet.formula import ArrayFormula, DataTableFormula
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
+from openpyxl.utils.cell import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 from classroom_grader import GraderError, replace_file, write_new
 from classroom_grader.course import add_course_option, course_settings, load_roster
-from classroom_grader.roster import (
-    GRADER_COLUMN,
-    USERNAME_COLUMNS,
-    Student,
-    roster_with_graders,
-    split_between,
+from classroom_grader.roster import Student, roster_with_graders, split_between
+from classroom_grader.settings import (
+    GRADES,
+    LIMITS_SHEET,
+    SETTINGS_FILE,
+    SHEET_FIRST_COLUMNS,
+    SHEET_LAST_COLUMNS,
+    SHEET_MIDDLE_COLUMNS,
+    GradingSheet,
 )
 
-HELP = "Write a grading spreadsheet from an Excel template, one row per student."
-# The row under the headers whose formulas and formatting every student gets.
-EXAMPLE_ROW = 2
-# Headers of the column that gets each student's grader.
-GRADER_HEADERS = (GRADER_COLUMN, "examiner")
+HELP = "Write the grading spreadsheet from grader.toml, one row per student."
+EXAMINER_COLUMN = SHEET_FIRST_COLUMNS.index("Examiner") + 1
+COLUMN_WIDTHS = {
+    "user": 32,
+    "Lastname": 32,
+    "Firstname": 27,
+    "Examiner": 22,
+    SHEET_FIRST_COLUMNS[-1]: 64,
+}
+MIN_COLUMN_WIDTH = 9
+TOTAL_FILL = PatternFill("solid", fgColor="FFD0E0E3")
+GRADE_FILL = PatternFill("solid", fgColor="FFD9EAD3")
+GRADE_FONT = Font(size=13, bold=True)
+# Rows of the limits sheet that the students' formulas read.
+SCALING_ROW = 4
+TOTAL_MAX_ROW = 5
+BEST_GRADE_ROW = 6
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     """Add the ``grader grading-sheet`` options."""
     parser.add_argument(
-        "--template",
-        type=Path,
-        required=True,
-        help="Excel workbook (.xlsx) with headers in row 1 and an example row 2",
-    )
-    parser.add_argument(
         "--output", type=Path, required=True, help="workbook to write; must not exist"
-    )
-    parser.add_argument(
-        "--roster",
-        type=Path,
-        help="roster CSV file (default: the roster in the course's grader.toml)",
     )
     parser.add_argument(
         "--assistant",
@@ -60,16 +58,21 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def run(args: argparse.Namespace) -> int:
-    """Write the template filled with the roster's students to ``--output``.
+    """Write the spreadsheet of ``[grading_sheet]`` to ``--output``.
 
     With ``--assistant``, the students are first split into blocks between the
     assistants, and the split is also written into the roster.
     """
-    roster_path, username_column = args.roster, None
-    if roster_path is None:
-        settings = course_settings(args)
-        roster_path, username_column = settings.roster, settings.username_column
+    settings = course_settings(args)
+    if settings.grading_sheet is None:
+        raise GraderError(
+            f"{settings.root / SETTINGS_FILE} has no [grading_sheet] table; add one "
+            'as in "The grading spreadsheet" in docs/setting-up-a-course.md'
+        )
+    roster_path, username_column = settings.roster, settings.username_column
     students = load_roster(roster_path, username_column).students
+    if not students:
+        raise GraderError("the roster has no students")
     assistants = _assistant_names(args.assistant or [])
     new_roster = None
     if assistants:
@@ -81,9 +84,8 @@ def run(args: argparse.Namespace) -> int:
         students = split_between(students, assistants)
         graders = {student.username.casefold(): student.grader for student in students}
         new_roster = roster_with_graders(roster_path, graders, username_column)
-    workbook = fill_template(args.template, students, needs_graders=bool(assistants))
     content = io.BytesIO()
-    workbook.save(content)
+    grading_workbook(settings.grading_sheet, students).save(content)
     write_new(args.output, content.getvalue())
     if new_roster is not None:
         try:
@@ -108,134 +110,100 @@ def _assistant_names(names: list[str]) -> list[str]:
     return names
 
 
-def fill_template(
-    template: Path, students: list[Student], *, needs_graders: bool = False
-) -> Workbook:
-    """Open ``template`` and give each sheet with a username column the students.
+def grading_workbook(spec: GradingSheet, students: list[Student]) -> Workbook:
+    """Return a workbook with a sheet of the students and a sheet of the limits.
 
-    In such a sheet the students take the rows from ``EXAMPLE_ROW`` down, in
-    roster order: each row gets the example row's formulas, moved to the row,
-    and its formatting, but none of its plain values, comments or links; the
-    username column gets the username and a ``grader`` or ``examiner`` column
-    the student's grader. Sheets without a username column in their first row
-    are left as they are. With ``needs_graders``, a template where no such
-    sheet has a grader column is refused.
+    The students take a row each, in roster order, with empty points and
+    formulas for the totals and the grade. The limits have a sheet of their own,
+    so that sorting the students cannot move them.
     """
-    if not students:
-        raise GraderError("the roster has no students")
-    try:
-        workbook = load_workbook(template)
-    # SyntaxError covers the XML parsers' errors for a damaged file.
-    except (InvalidFileException, zipfile.BadZipFile, KeyError, SyntaxError) as error:
-        raise GraderError(f"{template} is not an Excel workbook: {error}") from None
-    results = [_fill_sheet(sheet, students) for sheet in workbook.worksheets]
-    filled = [has_graders for has_graders in results if has_graders is not None]
-    if not filled:
-        names = ", ".join(USERNAME_COLUMNS)
-        raise GraderError(
-            f"{template}: no sheet has a username column ({names}) in its first row"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = spec.name
+    _write_limits(workbook.create_sheet(LIMITS_SHEET), spec)
+    columns = [
+        *SHEET_FIRST_COLUMNS,
+        *spec.exercises,
+        *SHEET_MIDDLE_COLUMNS,
+        *spec.quizzes,
+        *SHEET_LAST_COLUMNS,
+    ]
+    for number, name in enumerate(columns, start=1):
+        cell = sheet.cell(1, number, name)
+        cell.data_type = "s"  # a column name starting with "=" stays text
+        width = COLUMN_WIDTHS.get(name, max(len(name) + 2, MIN_COLUMN_WIDTH))
+        sheet.column_dimensions[get_column_letter(number)].width = width
+    first_exercise = len(SHEET_FIRST_COLUMNS) + 1
+    last_exercise = len(SHEET_FIRST_COLUMNS) + len(spec.exercises)
+    exercises_total = last_exercise + 2
+    first_quiz = exercises_total + 1
+    last_quiz = exercises_total + len(spec.quizzes)
+    quizzes_total = last_quiz + 1
+    quiz_points, extra_points, total, grade = (quizzes_total + n for n in (1, 2, 3, 4))
+    sheet.cell(1, grade).fill = GRADE_FILL
+    for row, student in enumerate(students, start=2):
+        sheet.cell(row, 1, student.username)
+        if student.grader is not None:
+            cell = sheet.cell(row, EXAMINER_COLUMN, student.grader)
+            cell.data_type = "s"  # a name starting with "=" stays text
+        sheet.cell(
+            row,
+            exercises_total,
+            f"=SUM({_cell_name(first_exercise, row)}:{_cell_name(last_exercise, row)})",
         )
-    if needs_graders and not any(filled):
-        raise GraderError(
-            f"{template}: no sheet with students has a grader or Examiner column "
-            "for the --assistant split"
+        sheet.cell(
+            row,
+            quizzes_total,
+            f"=SUM({_cell_name(first_quiz, row)}:{_cell_name(last_quiz, row)})",
         )
+        sheet.cell(
+            row,
+            quiz_points,
+            f"={_cell_name(quizzes_total, row)}*{LIMITS_SHEET}!B${SCALING_ROW}",
+        )
+        points = [
+            _cell_name(c, row) for c in (exercises_total, quiz_points, extra_points)
+        ]
+        sheet.cell(row, total, f"={'+'.join(points)}").fill = TOTAL_FILL
+        cell = sheet.cell(row, grade, _grade_formula(_cell_name(total, row)))
+        cell.fill, cell.font = GRADE_FILL, GRADE_FONT
+    sheet.freeze_panes = sheet.cell(2, len(SHEET_FIRST_COLUMNS))
+    last = f"{get_column_letter(len(columns))}{len(students) + 1}"
+    sheet.auto_filter.ref = f"A1:{last}"
     return workbook
 
 
-def _fill_sheet(sheet: Worksheet, students: list[Student]) -> bool | None:
-    """Write one row per student into ``sheet``; tell whether it has a grader column.
+def _cell_name(column: int, row: int) -> str:
+    """Return the name of a cell, such as ``F2``."""
+    return f"{get_column_letter(column)}{row}"
 
-    None means the sheet has no username column and is left alone.
+
+def _grade_formula(total: str) -> str:
+    """Return the grade of the points in cell ``total``, from the limits sheet.
+
+    Nested IF, because Excel keeps IFS in its files under another name.
     """
-    columns = {
-        str(cell.value).strip().casefold(): cell.column
-        for cell in sheet[1]
-        if cell.value is not None
-    }
-    user_column = next((columns[n] for n in USERNAME_COLUMNS if n in columns), None)
-    if user_column is None:
-        return None
-    grader_column = next((columns[n] for n in GRADER_HEADERS if n in columns), None)
-    last_row = EXAMPLE_ROW + len(students) - 1
-    needed = f"the {len(students)} students need rows {EXAMPLE_ROW}-{last_row}"
-    for merged in sheet.merged_cells.ranges:
-        if merged.min_row <= last_row and merged.max_row >= EXAMPLE_ROW:
-            raise GraderError(
-                f"{sheet.title}!{merged.coord} is merged, but {needed}; "
-                "unmerge it or move it further down in the template"
-            )
-    for row in sheet.iter_rows(min_row=EXAMPLE_ROW + 1, max_row=last_row):
-        for cell in row:
-            if cell.value is not None or cell.comment is not None:
-                raise GraderError(
-                    f"{sheet.title}!{cell.coordinate} is not empty, but {needed}; "
-                    "move what is there further down in the template"
-                )
-    example = [
-        (cell.column, _example_formula(sheet, cell), copy(cell._style))
-        for cell in sheet[EXAMPLE_ROW][: sheet.max_column]
+    formula = "0"
+    for grade in range(1, GRADES + 1):
+        row = BEST_GRADE_ROW + GRADES - grade
+        formula = f"IF({total}>={LIMITS_SHEET}!B${row},{grade},{formula})"
+    return f"={formula}"
+
+
+def _write_limits(sheet: Worksheet, spec: GradingSheet) -> None:
+    """Fill the limits sheet; a later change to a value there reaches every grade."""
+    exercise_points = "+".join(str(points) for points in spec.exercises.values())
+    rows = [
+        ("Quiz max points", spec.quiz_max_points),
+        ("Minimum quiz points for pass", f"=B1*{spec.quiz_pass_share}"),
+        ("Exercises max points", f"={exercise_points}"),
+        ("Quiz to exercises scaling ratio", "=B3/B1"),
+        ("Total max points (scaled)", "=B3+B1*B4"),
     ]
-    example_row = sheet.row_dimensions[EXAMPLE_ROW]
-    for row, student in enumerate(students, start=EXAMPLE_ROW):
-        for column, formula, style in example:
-            cell = sheet.cell(row, column)
-            cell._style = copy(style)
-            cell.value = _formula_in_row(formula, column, row)
-            cell.comment = cell.hyperlink = None
-        sheet.cell(row, user_column).value = student.username
-        if grader_column is not None:
-            cell = sheet.cell(row, grader_column)
-            cell.value = student.grader
-            if student.grader is not None:
-                cell.data_type = "s"  # a name starting with "=" stays text
-        dimension = copy(example_row)  # height, hiding and row formatting
-        dimension.index = row
-        sheet.row_dimensions[row] = dimension
-    return grader_column is not None
-
-
-def _example_formula(sheet: Worksheet, cell: Cell) -> object:
-    """Return the formula of the example row's ``cell``, or None for no formula.
-
-    A data table, an array formula over several rows and a formula that
-    openpyxl cannot parse are refused: they cannot be moved to other rows.
-    """
-    formula = cell.value if cell.data_type == "f" else None
-    where = f"{sheet.title}!{cell.coordinate}"
-    several_rows = False
-    if isinstance(formula, ArrayFormula):
-        _, first_row, _, last_row = range_boundaries(formula.ref)
-        several_rows = first_row != last_row
-    if several_rows or isinstance(formula, DataTableFormula):
-        raise GraderError(
-            f"{where}: an array formula over several rows or a data table "
-            "cannot be copied to each student's row"
-        )
-    if formula is not None:
-        text = formula.text if isinstance(formula, ArrayFormula) else formula
-        try:
-            Translator(text, cell.coordinate)
-        except TokenizerError as error:
-            raise GraderError(
-                f"{where}: the formula cannot be copied: {error}"
-            ) from None
-    return formula
-
-
-def _formula_in_row(formula: object, column: int, row: int) -> object:
-    """Return the example row's ``formula`` moved to ``row``; None for no formula.
-
-    Relative references move with the row; references with ``$`` stay.
-    """
-    if formula is None:
-        return None
-    letter = get_column_letter(column)
-    origin, target = f"{letter}{EXAMPLE_ROW}", f"{letter}{row}"
-    if isinstance(formula, ArrayFormula):
-        first_column, _, last_column, _ = range_boundaries(formula.ref)
-        first = f"{get_column_letter(first_column)}{row}"
-        last = f"{get_column_letter(last_column)}{row}"
-        text = Translator(formula.text, origin).translate_formula(target)
-        return ArrayFormula(first if first == last else f"{first}:{last}", text)
-    return Translator(formula, origin).translate_formula(target)
+    rows += [
+        (f"Grade {grade} min points", f"=B{TOTAL_MAX_ROW}*{share}")
+        for grade, share in zip(range(GRADES, 0, -1), spec.grade_limits, strict=True)
+    ]
+    for row in rows:
+        sheet.append(row)
+    sheet.column_dimensions["A"].width = 32
