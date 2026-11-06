@@ -21,7 +21,12 @@ AaltoGIS/gradertools.
 - `grader status` shows per student whether the feedback is committed and
   pushed, apart from notebook metadata changes and checkpoint files.
 - `grader push` commits only the feedback files, places the commit on top of
-  newer student commits, and pushes.
+  newer student commits, and pushes. Local commits that change any other
+  file are refused unless `--extra-file` names it.
+- `grader template` adds a grading template with each problem's maximum
+  points, set per assignment in `grader.toml`, to the end of the students'
+  READMEs; `grader push` skips and `grader status` flags a template that
+  still has a line without points.
 - `grader source` clones or updates the teacher's repository into `source/`
   and releases the assignment with nbgrader.
 - Group assignments: the teams' repositories are found through the GitHub

@@ -15,6 +15,7 @@ from classroom_grader import (
     source,
     status,
     students,
+    template,
 )
 
 
@@ -32,6 +33,7 @@ COMMANDS: tuple[Command, ...] = (
     Command("init", init.HELP, init.add_arguments, init.run),
     Command("students", students.HELP, students.add_arguments, students.run),
     Command("fetch", fetch.HELP, fetch.add_arguments, fetch.run),
+    Command("template", template.HELP, template.add_arguments, template.run),
     Command("status", status.HELP, status.add_arguments, status.run),
     Command("push", push.HELP, push.add_arguments, push.run),
     Command("source", source.HELP, source.add_arguments, source.run),

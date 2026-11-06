@@ -2,11 +2,11 @@
 
 import argparse
 import os
-from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import partial
 from pathlib import Path
 
+from classroom_grader import GraderError
 from classroom_grader.course import (
     add_repo_options,
     map_in_parallel,
@@ -25,8 +25,9 @@ from classroom_grader.repo import (
     repo_name,
     upstream,
 )
-from classroom_grader.settings import Assignment, Settings
-from classroom_grader.table import format_table, printable
+from classroom_grader.settings import Assignment, Settings, repository_paths
+from classroom_grader.table import format_table, printable, state_counts
+from classroom_grader.template import template_text, unfilled_points
 
 HELP = "Commit the feedback files and push them to the students' repositories."
 DEFAULT_MESSAGE = "Add grading"
@@ -34,12 +35,15 @@ STATES = (
     "pushed",
     "would push",
     "nothing to push",
+    "template not filled",
     "not fetched",
     "blocked",
     "conflict",
     "refused",
     "failed",
 )
+# git's options for a list of changed paths, NUL-separated and unquoted.
+_NAMES = ("--name-only", "--no-renames", "-z")
 # States that leave feedback unpushed and need the grader's attention.
 PROBLEMS = {"blocked", "conflict", "refused", "failed"}
 
@@ -67,11 +71,27 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="fetch and show what would be committed and pushed, changing nothing else",
     )
+    parser.add_argument(
+        "--extra-file",
+        action="append",
+        metavar="PATH",
+        help="also commit and push this file, and earlier commits that change it; "
+        "repeat for more",
+    )
 
 
 def run(args: argparse.Namespace) -> int:
-    """Push every selected student's feedback; return 1 if any needs attention."""
+    """Push every selected student's feedback; return 1 if any needs attention.
+
+    ``--extra-file`` paths count as feedback files for this run.
+    """
+    path_problems: list[str] = []
+    extra = repository_paths(args.extra_file or [], "--extra-file", path_problems)
+    if path_problems:
+        raise GraderError("; ".join(path_problems))
     settings, selection = open_assignments(args)
+    feedback = tuple(dict.fromkeys((*settings.feedback_files, *extra)))
+    settings = replace(settings, feedback_files=feedback)
     problems = False
     for assignment, names in selection:
         push_one = partial(
@@ -94,9 +114,12 @@ def push_repo(
     """Commit ``name``'s changed feedback files and push them with any local commits.
 
     Only the feedback files are committed; other local changes stay as they
-    are. When the student pushed since, the commits are rebased onto the
-    student's, unless other local changes touch the same files ("blocked"); a
-    rebase conflict is aborted ("conflict"), keeping the local commits.
+    are. Earlier local commits that change any other file are not pushed
+    ("refused"), and neither is a grading template still without points
+    ("template not filled"). When the student pushed since, the commits are
+    rebased onto the student's, unless other local changes touch the same
+    files ("blocked"); a rebase conflict is aborted ("conflict"), keeping the
+    local commits.
     """
     folder = submission_folder(settings, name, assignment)
     repo = repo_name(assignment, name)
@@ -109,15 +132,22 @@ def push_repo(
             return PushResult(name, "refused", problem)
         run_git(["fetch", "--quiet", "origin"], folder)
         tracked = upstream(folder)
-        if commit(folder, "HEAD") is None or tracked is None:
+        fetched = commit(folder, tracked) if tracked else None
+        if commit(folder, "HEAD") is None or tracked is None or fetched is None:
             return PushResult(
                 name, "refused", "its checkout has no commit on a branch of origin"
             )
         feedback_changed = local_changes(folder, settings.feedback_files)[0]
-        ahead, behind = ahead_behind(folder, tracked)
+        ahead, behind = ahead_behind(folder, fetched)
         if not feedback_changed and not ahead:
             return PushResult(name, "nothing to push")
-        if behind and (reason := _rebase_blocker(folder, tracked, settings)):
+        if result := _unfilled(
+            settings, assignment, name, template_text(settings, folder)
+        ):
+            return result
+        if ahead and (refusal := _other_files(folder, fetched, "HEAD", settings)):
+            return PushResult(name, "refused", refusal)
+        if behind and (reason := _rebase_blocker(folder, fetched, settings)):
             return PushResult(name, "blocked", reason)
         steps = ["commit feedback"] if feedback_changed else []
         if behind:
@@ -129,15 +159,24 @@ def push_repo(
             folder, settings.feedback_files, message
         ):
             return PushResult(name, "failed", "found no feedback file to commit")
-        if behind and not _rebase(folder, tracked):
+        if behind and not _rebase(folder, fetched):
             return PushResult(
                 name,
                 "conflict",
                 "the student's new commits conflict with yours; the rebase was "
                 "undone, so pull and resolve by hand",
             )
-        branch = tracked.removeprefix("refs/remotes/origin/")
-        run_git(["push", "--quiet", "origin", f"HEAD:refs/heads/{branch}"], folder)
+        tip = run_git(["rev-parse", "--verify", "HEAD"], folder).strip()
+        if refusal := _other_files(folder, fetched, tip, settings):
+            return PushResult(name, "refused", refusal)
+        if result := _unfilled(
+            settings, assignment, name, template_text(settings, folder, tip)
+        ):
+            return result
+        branch = f"refs/heads/{tracked.removeprefix('refs/remotes/origin/')}"
+        # The lease refuses the push if the branch has moved since the fetch.
+        lease = f"--force-with-lease={branch}:{fetched}"
+        run_git(["push", "--quiet", lease, "origin", f"{tip}:{branch}"], folder)
     except GitError as error:
         return PushResult(name, "failed", str(error))
     except (OSError, RuntimeError) as error:  # RuntimeError: a symlink loop on 3.11
@@ -148,10 +187,7 @@ def push_repo(
 def push_report(assignment: Assignment, results: list[PushResult]) -> str:
     """Return a table of what was pushed per student, and the counts."""
     rows = [[r.student, r.state, r.detail or "-"] for r in results]
-    counts = Counter(r.state for r in results)
-    summary = (
-        ", ".join(f"{counts[s]} {s}" for s in STATES if counts[s]) or "no students"
-    )
+    summary = state_counts(STATES, [r.state for r in results])
     table = format_table([assignment.owner_title, "Result", "Details"], rows)
     return f"{assignment.name}\n{table}\n{assignment.name}: {summary}"
 
@@ -183,6 +219,49 @@ def _commit_feedback(
         folder,
     )
     return True
+
+
+def _unfilled(
+    settings: Settings, assignment: Assignment, name: str, text: str | None
+) -> PushResult | None:
+    """Return the "template not filled" result when ``text`` lacks points."""
+    if missing := unfilled_points(settings, assignment, text):
+        return PushResult(
+            name, "template not filled", f"no points for {', '.join(missing)}"
+        )
+    return None
+
+
+def _other_files(
+    folder: Path, fetched: str, tip: str, settings: Settings
+) -> str | None:
+    """Say which non-feedback files pushing ``tip`` would change; None if none.
+
+    Every commit after ``fetched`` counts with the files it changes, a merge
+    only with those it changes from every parent; and the whole range counts
+    with what ``tip`` changes from the last commit it shares with ``fetched``.
+    So merging the student's commits in adds none of their files, but undoing
+    one of their changes does.
+    """
+    base = run_git(["merge-base", tip, fetched], folder).strip()
+    paths = _paths(run_git(["diff", *_NAMES, base, tip], folder))
+    for sha in run_git(["rev-list", f"{fetched}..{tip}"], folder).split():
+        diff_tree = ["diff-tree", "-r", "--root", "--cc", "--no-commit-id"]
+        paths |= _paths(run_git([*diff_tree, *_NAMES, sha], folder))
+    others = sorted(paths - set(settings.feedback_files))
+    if not others:
+        return None
+    shown = ", ".join(printable(path) for path in others)
+    return (
+        f"your commits also change {shown}; to push them, name each with "
+        f"--extra-file, or undo the commits with git reset {base[:7]}, which keeps "
+        "their changes in your files"
+    )
+
+
+def _paths(names: str) -> set[str]:
+    """Return the paths in git's ``--name-only -z`` output."""
+    return set(names.split("\0")) - {""}
 
 
 def _rebase_blocker(folder: Path, tracked: str, settings: Settings) -> str | None:

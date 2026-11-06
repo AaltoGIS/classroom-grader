@@ -159,7 +159,6 @@ need these from the teacher:
 
 - your name as the roster's `grader` column writes it,
 - the grading spreadsheet,
-- the exercise's grading template,
 - where the exercise's model solutions are, if not in its `-grading`
   repository.
 
@@ -201,12 +200,21 @@ it, every student in the roster is included. Name single students with
    times come from the students' computers, so take them as a hint. Tell the
    teacher about students without a repository.
 
-3. Grade. Run `jupyter lab` in the course folder and open each student's work
-   in `submitted/<username>/Exercise-1`, which holds notebooks or, in some
-   exercises, other files. Then open the `README.md` in the same folder, paste
-   the exercise's grading template into it, and fill in the points and your
-   written feedback. The student reads this `README.md` on GitHub after you
-   push it in step 5.
+3. Grade. First add the exercise's grading template, with the points the
+   teacher has set, to the end of each student's `README.md`:
+
+   ```
+   grader template Exercise-1 --grader Emma
+   ```
+
+   Run `jupyter lab` in the course folder and open each student's work in
+   `submitted/<username>/Exercise-1`, which holds notebooks or, in some
+   exercises, other files. Then open the `README.md` in the same folder and
+   fill in the template: the points before each slash, such as
+   `- Problem 1: 7/8 points`, the total, and your written feedback under
+   `Comments:`. The student reads this `README.md` on GitHub after you push it
+   in step 5. Running `grader template` again, for example after a later
+   fetch, adds the template only to the READMEs that do not have it yet.
 
    The model solutions are in the exercise's `-grading` repository or on Google
    Drive, as the teacher tells you. To get them from the repository, run
@@ -219,7 +227,8 @@ it, every student in the roster is included. Name single students with
    grader status Exercise-1 --grader Emma
    ```
 
-   One row per student: `feedback not committed`, `not pushed`,
+   One row per student: `template not filled` (a line of the grading
+   template still has no points), `feedback not committed`, `not pushed`,
    `student pushed since`, `diverged`, `up to date`, `empty`, `not fetched` or
    `no repo`, other local changes, and the late-commit time. Files in
    `.ipynb_checkpoints` are left out, and notebooks that changed only in their
@@ -234,15 +243,30 @@ it, every student in the roster is included. Name single students with
    ```
 
    Only the feedback files (`README.md` unless `grader.toml` says otherwise)
-   are committed, with the message "Add grading" (change it with `-m`). Any
-   earlier commits you made in the clone and have not pushed are pushed with
-   it; `--dry-run` shows how many commits each push would send. If the
-   student has pushed since you fetched, your commits are placed on top of
-   theirs before pushing. Other changes in the clone stay as they are.
+   are committed, with the message "Add grading" (change it with `-m`). Other
+   changes in the clone stay as they are. Earlier commits you made in the
+   clone and have not pushed go with it if they change nothing but the
+   feedback files; `--dry-run` shows how many commits each push would send. If
+   the student has pushed since you fetched, your commits are placed on top of
+   theirs before pushing. A student whose grading template still has a line
+   without points, such as `- Problem 2: /11 points` or the total, is skipped
+   (`template not filled`), so you can push the students you have graded so
+   far.
+
+   If your earlier commits change other files too, such as a notebook you ran,
+   nothing is pushed for that student: the row says `refused` and names the
+   files. Undo the commits with the `git reset` command that the row shows,
+   which keeps their changes in your files, and push again. To send other
+   files to the student on purpose, name each one with `--extra-file`; their
+   current changes are committed with the feedback:
+
+   ```
+   grader push Exercise-1 --student alice --extra-file comments.pdf
+   ```
 
    `blocked` means that other local changes would get in the way of placing
-   your commit on top of the student's: commit, discard or stash them (or
-   unstage staged files) and run `grader push` again. `conflict` means that
+   your commit on top of the student's: discard or stash them (or unstage
+   staged files) and run `grader push` again. `conflict` means that
    the student changed the same lines as you; `grader push` leaves your commit
    in the clone, and you resolve it there with `git pull --rebase`.
 

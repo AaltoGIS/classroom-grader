@@ -8,6 +8,7 @@ from pathlib import Path
 
 from classroom_grader import GraderError, write_new
 from classroom_grader.settings import (
+    DEFAULT_COMMENT,
     DEFAULT_GRADE_LIMITS,
     DEFAULT_QUIZ_PASS_SHARE,
     SETTINGS_FILE,
@@ -191,6 +192,8 @@ def _settings_text(settings: Settings, roster: str) -> str:
             f"# repo_prefix = {_toml_string(assignment.repo_prefix)}  # the default",
             f"# source_repo = {_toml_string(assignment.source_repo)}  # the default",
             "# deadline = 2026-12-31T23:59:00+02:00",
+            '# points = { "Problem 1" = 8, "Problem 2" = 12 }  # for grader template',
+            f"# comment = {_toml_string(DEFAULT_COMMENT)}  # the default",
         ]
     lines += [
         "",

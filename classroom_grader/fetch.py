@@ -1,7 +1,6 @@
 """``grader fetch``: clone or update the students' repositories in ``submitted/``."""
 
 import argparse
-from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
@@ -28,6 +27,7 @@ from classroom_grader.repo import (
     upstream,
 )
 from classroom_grader.settings import Assignment, Settings
+from classroom_grader.table import state_counts
 
 HELP = "Clone or update the students' repositories of the given assignments."
 STATES = (
@@ -116,10 +116,7 @@ def fetch_repo(
 
 def fetch_report(assignment: Assignment, results: list[FetchResult]) -> str:
     """Summarise the results of one assignment, listing what needs attention."""
-    counts = Counter(result.state for result in results)
-    summary = (
-        ", ".join(f"{counts[s]} {s}" for s in STATES if counts[s]) or "no students"
-    )
+    summary = state_counts(STATES, [result.state for result in results])
     lines = [f"{assignment.name}: {summary}"]
     repo = repo_name(assignment, f"<{assignment.owner_title.lower()}>")
     for state, title in _LISTED.items():
