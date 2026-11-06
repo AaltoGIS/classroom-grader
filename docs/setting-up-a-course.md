@@ -134,12 +134,10 @@ assistants get the changes with `git pull`.
    `-grading` repository, as you did for the course repository, or share the
    solutions on Google Drive and tell them where.
 
-3. Collect the scores (**Collect now** in Classroom 50) after the students have
-   accepted, before the assistants run `grader fetch`. Classroom 50 gives the
-   TA team write access to the students' repositories when it collects the
-   scores, not when a student accepts an assignment; until then, `grader fetch`
-   lists those students as having no repository. Collect again when students
-   accept later.
+3. Collect the scores in Classroom 50 once most students have accepted, again
+   before each exercise or help session, and once after the deadline. The
+   assistants see only the repositories that existed at the last collection
+   (see [Collecting the scores](#collecting-the-scores-in-classroom-50)).
 
 4. Tell the assistants that they can start. They follow
    [A grading round](../README.md#a-grading-round).
@@ -330,3 +328,42 @@ by hand.
 
 Before the course starts, try `grader` with test assignments, as described
 in [Trial run](trial-run.md).
+
+## Collecting the scores in Classroom 50
+
+> [!IMPORTANT]
+> The assistants see no student repositories until you collect the scores in
+> Classroom 50, and nothing collects on its own.
+
+TAs and head TAs get write access to a student's repository only when the
+scores are collected, not when the student accepts the assignment. Each
+collection covers the repositories that exist at that moment. A repository
+created later stays hidden from them until the next collection, and
+Classroom 50's staff view shows that student as "Not visible". Until then the
+assistants cannot help the student, and `grader fetch` lists the student as
+having no repository. You see every repository as the teacher, so you will not
+notice this yourself.
+
+To collect, open the classroom in Classroom 50, go to **Assignments** and click
+**Collect all**. **Collect now** on a single assignment covers only that
+assignment's repositories. You and head TAs can collect; TAs cannot. You can
+collect at any time, also before the deadline, and as often as needed.
+
+Collect:
+
+- after each exercise is released, once most students have accepted it (for
+  example one or two days later);
+- again before each exercise session or TA help session, for the students who
+  accepted late;
+- once after the deadline, before the assistants start grading.
+
+To check that it worked, ask an assistant to look at the classroom in
+Classroom 50: no student who has accepted shows as "Not visible".
+
+Each collection uses GitHub Actions minutes and stops after 30 minutes;
+collecting a single assignment is lighter. It also runs from the command line,
+with your organization in place of `IntroSDA-2026`:
+
+```
+gh workflow run collect-scores.yaml --repo IntroSDA-2026/classroom50
+```
