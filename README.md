@@ -200,12 +200,10 @@ it, every student in the roster is included. Name single students with
    times come from the students' computers, so take them as a hint. Tell the
    teacher about students without a repository.
 
-3. Grade. First add the exercise's grading template to the end of each
-   student's `README.md`. The teacher sets its points in the course settings,
-   so get the teacher's latest changes first:
+3. Grade. First add the exercise's grading template, with the points the
+   teacher has set, to the end of each student's `README.md`:
 
    ```
-   git pull
    grader template Exercise-1 --grader Emma
    ```
 

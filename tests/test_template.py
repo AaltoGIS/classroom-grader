@@ -39,8 +39,9 @@ def test_the_template_is_added_once_and_holds_back_the_push(course, github, caps
         "user\nalice\nbob\ncarol\ndave\n", encoding="utf-8"
     )
     github.push("exercise-1-alice", {"README.md": "# Exercise 1\n"}, BOT, WHEN)
-    bob_readme = {"README.md": "# Exercise 1\r\nWork"}
-    github.push("exercise-1-bob", bob_readme, BOT, WHEN)
+    bob_repo = github.create("exercise-1-bob")
+    (bob_repo / "README.md").write_bytes(b"# Exercise 1\r\nWork")
+    github.push("exercise-1-bob", {}, BOT, WHEN)
     github.push("exercise-1-carol", {"nb.ipynb": "{}\n"}, BOT, WHEN)
     course_option = ["--course", str(course)]
     assert cli.main(["fetch", "Exercise-1", *course_option]) == 0
