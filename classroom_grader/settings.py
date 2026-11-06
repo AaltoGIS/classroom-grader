@@ -203,16 +203,24 @@ def _string(
 
 
 def _feedback_files(value: Any, problems: list[str]) -> tuple[str, ...]:
-    """Return the feedback file paths in git's form: relative, with forward slashes.
-
-    ``./README.md`` becomes ``README.md`` and ``feedback\\notes.md`` becomes
-    ``feedback/notes.md``; a path that leaves the repository is a problem.
-    """
+    """Return the ``feedback_files`` paths in git's form, or the default."""
     if value is None:
         return DEFAULT_FEEDBACK_FILES
     if not isinstance(value, list) or not value:
         problems.append("feedback_files: must be a list of file paths")
         return ()
+    return repository_paths(value, "feedback_files", problems)
+
+
+def repository_paths(
+    value: list[Any], label: str, problems: list[str]
+) -> tuple[str, ...]:
+    """Return file paths in git's form: relative, with forward slashes.
+
+    ``./README.md`` becomes ``README.md`` and ``feedback\\notes.md`` becomes
+    ``feedback/notes.md``; a path that leaves the repository is a problem,
+    recorded under ``label``.
+    """
     paths = []
     for path in value:
         parts = PureWindowsPath(path).parts if isinstance(path, str) else ()
@@ -224,9 +232,7 @@ def _feedback_files(value: Any, problems: list[str]) -> tuple[str, ...]:
             or ".." in parts
             or not [part for part in parts if part != "."]
         ):
-            problems.append(
-                f"feedback_files: {path!r} is not a path inside the repository"
-            )
+            problems.append(f"{label}: {path!r} is not a path inside the repository")
         else:
             paths.append("/".join(part for part in parts if part != "."))
     return tuple(paths)

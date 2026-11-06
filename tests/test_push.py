@@ -158,6 +158,97 @@ def test_push_commits_only_feedback_and_rebases_onto_student_commits(
     assert git("log", "-1", "--format=%s", "main", cwd=gina) == "Add grading\n"
 
 
+def refusal(files, base):
+    return (
+        f"your commits also change {files}; to push them, name each with "
+        f"--extra-file, or undo the commits with git reset {base[:7]}, which keeps "
+        "their changes in your files"
+    )
+
+
+def test_commits_that_change_other_files_need_extra_file(course, github, capsys):
+    (course / "grader.toml").write_text(SETTINGS, encoding="utf-8")
+    names = ("alice", "bob", "carol", "dave", "erin", "frank")
+    (course / "student_info.csv").write_text(
+        "user\n" + "".join(f"{name}\n" for name in names), encoding="utf-8"
+    )
+    start = {"README.md": "Points:\n", "nb.ipynb": "{}\n", "data.csv": "a\n"}
+    for name in names:
+        github.push(f"exercise-1-{name}", start, BOT, WHEN)
+    assert cli.main(["fetch", "Exercise-1", "--course", str(course)]) == 0
+    clone = {name: course / "submitted" / name / "Exercise-1" for name in names}
+    git = github.git
+    # alice: an earlier commit of a notebook the grader ran
+    (clone["alice"] / "nb.ipynb").write_text('{"ran": true}\n')
+    git("commit", "--quiet", "--all", "--message", "Run", cwd=clone["alice"])
+    (clone["alice"] / "README.md").write_text("Points: 9\n")
+    (clone["alice"] / "data.csv").write_text("b\n")
+    alice_base = git("rev-parse", "HEAD~1", cwd=clone["alice"])
+    # bob and carol: the student's new commit merged in; carol's merge undoes it
+    for name, strategy in (("bob", "ort"), ("carol", "ours")):
+        github.push(f"exercise-1-{name}", {"data.csv": "new\n"}, name, WHEN)
+        (clone[name] / "README.md").write_text("Points: 8\n")
+        git("commit", "--quiet", "--all", "--message", "Grade", cwd=clone[name])
+        merge = ["pull", "--quiet", "--no-rebase", "--no-edit", "-s", strategy]
+        git(*merge, cwd=clone[name])
+    carol_base = git("rev-parse", "origin/main", cwd=clone["carol"])
+    # dave: the student renamed README.md, so the rebase moves the feedback there
+    dave_repo = github.create("exercise-1-dave")
+    git("mv", "README.md", "notes.md", cwd=dave_repo)
+    github.push("exercise-1-dave", {}, "dave", WHEN)
+    (clone["dave"] / "README.md").write_text("Points: 7\n")
+    # erin: one merge slips in a notebook change that a later merge undoes
+    (clone["erin"] / "README.md").write_text("Points: 6\n")
+    git("commit", "--quiet", "--all", "--message", "Grade", cwd=clone["erin"])
+    for text in ('{"ran": true}\n', "{}\n"):
+        github.push("exercise-1-erin", {"data.csv": text}, "erin", WHEN)
+        git("pull", "--quiet", "--no-rebase", "--no-commit", cwd=clone["erin"])
+        (clone["erin"] / "nb.ipynb").write_text(text)
+        git("commit", "--quiet", "--all", "--no-edit", cwd=clone["erin"])
+    erin_base = git("rev-parse", "origin/main", cwd=clone["erin"])
+    # frank: the branch was deleted on GitHub after the clone
+    (clone["frank"] / "README.md").write_text("Points: 5\n")
+    capsys.readouterr()
+
+    args = ["push", "Exercise-1", "--course", str(course)]
+    remote = {
+        name: github.root / "IntroSDA-2026" / f"exercise-1-{name}.git" for name in names
+    }
+    git("update-ref", "-d", "refs/heads/main", cwd=remote["frank"])
+    assert cli.main([*args, "--student", "frank"]) == 1
+    frank = capsys.readouterr().out
+    assert "frank    failed  git push failed" in frank
+    assert not git("branch", "--list", cwd=remote["frank"])
+    assert cli.main([*args, *(f"--student={name}" for name in names[:5])]) == 1
+    dave_base = git("rev-parse", "origin/main", cwd=clone["dave"])
+    assert capsys.readouterr().out == report(
+        [
+            ["alice", "refused", refusal("nb.ipynb", alice_base)],
+            ["bob", "pushed", "push 2 commits"],
+            ["carol", "refused", refusal("data.csv", carol_base)],
+            ["dave", "refused", refusal("notes.md", dave_base)],
+            ["erin", "refused", refusal("nb.ipynb", erin_base)],
+        ],
+        "1 pushed, 4 refused",
+    )
+    assert git("show", "main:nb.ipynb", cwd=remote["alice"]) == "{}\n"
+    assert git("show", "main:data.csv", cwd=remote["carol"]) == "new\n"
+    assert git("show", "main:notes.md", cwd=remote["dave"]) == "Points:\n"
+
+    assert cli.main([*args, "--extra-file", "../nb.ipynb"]) == 1
+    assert capsys.readouterr().err == (
+        "grader: --extra-file: '../nb.ipynb' is not a path inside the repository\n"
+    )
+
+    extra = ["--extra-file", "./nb.ipynb", "--extra-file", "data.csv"]
+    assert cli.main([*args, "--student", "alice", *extra]) == 0
+    assert capsys.readouterr().out == report(
+        [["alice", "pushed", "commit feedback, push 2 commits"]], "1 pushed"
+    )
+    assert git("show", "main:nb.ipynb", cwd=remote["alice"]) == '{"ran": true}\n'
+    assert git("show", "main:data.csv", cwd=remote["alice"]) == "b\n"
+
+
 @pytest.mark.skipif(
     os.name == "nt", reason="symbolic links need extra rights on Windows"
 )

@@ -234,15 +234,27 @@ it, every student in the roster is included. Name single students with
    ```
 
    Only the feedback files (`README.md` unless `grader.toml` says otherwise)
-   are committed, with the message "Add grading" (change it with `-m`). Any
-   earlier commits you made in the clone and have not pushed are pushed with
-   it; `--dry-run` shows how many commits each push would send. If the
-   student has pushed since you fetched, your commits are placed on top of
-   theirs before pushing. Other changes in the clone stay as they are.
+   are committed, with the message "Add grading" (change it with `-m`). Other
+   changes in the clone stay as they are. Earlier commits you made in the
+   clone and have not pushed go with it if they change nothing but the
+   feedback files; `--dry-run` shows how many commits each push would send. If
+   the student has pushed since you fetched, your commits are placed on top of
+   theirs before pushing.
+
+   If your earlier commits change other files too, such as a notebook you ran,
+   nothing is pushed for that student: the row says `refused` and names the
+   files. Undo the commits with the `git reset` command that the row shows,
+   which keeps their changes in your files, and push again. To send other
+   files to the student on purpose, name each one with `--extra-file`; their
+   current changes are committed with the feedback:
+
+   ```
+   grader push Exercise-1 --student alice --extra-file comments.pdf
+   ```
 
    `blocked` means that other local changes would get in the way of placing
-   your commit on top of the student's: commit, discard or stash them (or
-   unstage staged files) and run `grader push` again. `conflict` means that
+   your commit on top of the student's: discard or stash them (or unstage
+   staged files) and run `grader push` again. `conflict` means that
    the student changed the same lines as you; `grader push` leaves your commit
    in the clone, and you resolve it there with `git pull --rebase`.
 
