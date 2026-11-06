@@ -93,7 +93,7 @@ deadline = 2026-11-13T23:59:00+02:00
             BASE
             + 'grader = ""\nprotocol = "git"\n'
             + 'feedback_files = ["../a.md", 3, "C:a.md", \'\\a.md\', "b/c.md",\n'
-            + '  "x\\u001b", "."]\n',
+            + '  "x\\u001b", ".", "a/.Git/config", "README.md:x", "CON/a.md"]\n',
             [
                 "grader: must be non-empty printable text",
                 "feedback_files: '../a.md' is not a path inside the repository",
@@ -102,6 +102,9 @@ deadline = 2026-11-13T23:59:00+02:00
                 "feedback_files: '\\\\a.md' is not a path inside the repository",
                 "feedback_files: 'x\\x1b' is not a path inside the repository",
                 "feedback_files: '.' is not a path inside the repository",
+                "feedback_files: 'a/.Git/config' is not a path inside the repository",
+                "feedback_files: 'README.md:x' is not a path inside the repository",
+                "feedback_files: 'CON/a.md' is not a path inside the repository",
                 "protocol: must be one of https, ssh",
             ],
         ),
@@ -162,6 +165,34 @@ deadline = 2026-11-13T23:59:00+02:00
         (
             BASE + 'assignments = ["Ex-1"]\n',
             ["assignments: must be a table of assignment tables"],
+        ),
+        (
+            BASE
+            + '[assignments.Ex-1]\npoints = { "Problem 1" = 0, "" = 2 }\n'
+            + 'comment = ""\n[grading_template]\ncolour = 1\n'
+            + 'text = "## Grading\\nPoints: {problems}"\n'
+            + 'problem = "- {points}"\ncomment = 3\n',
+            [
+                "assignments.Ex-1.points: must give each problem its maximum "
+                'points, such as {{ "Problem 1" = 8 }}',
+                "assignments.Ex-1.comment: must be non-empty printable text",
+                "grading_template.colour: unknown setting",
+                "grading_template.text: must hold {{problems}} on a line of its own "
+                "and start with a line of plain text, such as ## Grading, which "
+                "marks a README that has the template",
+                "grading_template.problem: must be one line that holds {{name}} "
+                "and {{points}}",
+                "grading_template.comment: must be non-empty printable text",
+            ],
+        ),
+        (
+            BASE + '[grading_template]\ntext = "{problems}\\u0000"\n',
+            [
+                "grading_template.text: must be printable text",
+                "grading_template.text: must hold {{problems}} on a line of its own "
+                "and start with a line of plain text, such as ## Grading, which "
+                "marks a README that has the template",
+            ],
         ),
         (BASE + "grading_sheet = 1\n", ["grading_sheet: must be a table"]),
         (

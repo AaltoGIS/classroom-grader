@@ -2,7 +2,6 @@
 
 import argparse
 import os
-from collections import Counter
 from dataclasses import dataclass, replace
 from functools import partial
 from pathlib import Path
@@ -27,7 +26,8 @@ from classroom_grader.repo import (
     upstream,
 )
 from classroom_grader.settings import Assignment, Settings, repository_paths
-from classroom_grader.table import format_table, printable
+from classroom_grader.table import format_table, printable, state_counts
+from classroom_grader.template import template_text, unfilled_points
 
 HELP = "Commit the feedback files and push them to the students' repositories."
 DEFAULT_MESSAGE = "Add grading"
@@ -35,6 +35,7 @@ STATES = (
     "pushed",
     "would push",
     "nothing to push",
+    "template not filled",
     "not fetched",
     "blocked",
     "conflict",
@@ -114,9 +115,11 @@ def push_repo(
 
     Only the feedback files are committed; other local changes stay as they
     are. Earlier local commits that change any other file are not pushed
-    ("refused"). When the student pushed since, the commits are rebased onto the
-    student's, unless other local changes touch the same files ("blocked"); a
-    rebase conflict is aborted ("conflict"), keeping the local commits.
+    ("refused"), and neither is a grading template still without points
+    ("template not filled"). When the student pushed since, the commits are
+    rebased onto the student's, unless other local changes touch the same
+    files ("blocked"); a rebase conflict is aborted ("conflict"), keeping the
+    local commits.
     """
     folder = submission_folder(settings, name, assignment)
     repo = repo_name(assignment, name)
@@ -138,6 +141,10 @@ def push_repo(
         ahead, behind = ahead_behind(folder, fetched)
         if not feedback_changed and not ahead:
             return PushResult(name, "nothing to push")
+        if result := _unfilled(
+            settings, assignment, name, template_text(settings, folder)
+        ):
+            return result
         if ahead and (refusal := _other_files(folder, fetched, "HEAD", settings)):
             return PushResult(name, "refused", refusal)
         if behind and (reason := _rebase_blocker(folder, fetched, settings)):
@@ -162,6 +169,10 @@ def push_repo(
         tip = run_git(["rev-parse", "--verify", "HEAD"], folder).strip()
         if refusal := _other_files(folder, fetched, tip, settings):
             return PushResult(name, "refused", refusal)
+        if result := _unfilled(
+            settings, assignment, name, template_text(settings, folder, tip)
+        ):
+            return result
         branch = f"refs/heads/{tracked.removeprefix('refs/remotes/origin/')}"
         # The lease refuses the push if the branch has moved since the fetch.
         lease = f"--force-with-lease={branch}:{fetched}"
@@ -176,10 +187,7 @@ def push_repo(
 def push_report(assignment: Assignment, results: list[PushResult]) -> str:
     """Return a table of what was pushed per student, and the counts."""
     rows = [[r.student, r.state, r.detail or "-"] for r in results]
-    counts = Counter(r.state for r in results)
-    summary = (
-        ", ".join(f"{counts[s]} {s}" for s in STATES if counts[s]) or "no students"
-    )
+    summary = state_counts(STATES, [r.state for r in results])
     table = format_table([assignment.owner_title, "Result", "Details"], rows)
     return f"{assignment.name}\n{table}\n{assignment.name}: {summary}"
 
@@ -211,6 +219,17 @@ def _commit_feedback(
         folder,
     )
     return True
+
+
+def _unfilled(
+    settings: Settings, assignment: Assignment, name: str, text: str | None
+) -> PushResult | None:
+    """Return the "template not filled" result when ``text`` lacks points."""
+    if missing := unfilled_points(settings, assignment, text):
+        return PushResult(
+            name, "template not filled", f"no points for {', '.join(missing)}"
+        )
+    return None
 
 
 def _other_files(

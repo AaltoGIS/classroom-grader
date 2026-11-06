@@ -1,7 +1,6 @@
 """``grader status``: whether the grading feedback has reached GitHub."""
 
 import argparse
-from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
@@ -30,12 +29,14 @@ from classroom_grader.repo import (
     upstream,
 )
 from classroom_grader.settings import Assignment, Settings
-from classroom_grader.table import format_table
+from classroom_grader.table import format_table, state_counts
+from classroom_grader.template import template_text, unfilled_points
 
 HELP = "Show whether each student's feedback is committed and pushed."
 STATES = (
     "up to date",
     "student pushed since",
+    "template not filled",
     "feedback not committed",
     "not pushed",
     "diverged",
@@ -46,7 +47,14 @@ STATES = (
     "failed",
 )
 # States in which feedback has not reached GitHub, or could not be checked.
-UNFINISHED = {"feedback not committed", "not pushed", "diverged", "refused", "failed"}
+UNFINISHED = {
+    "template not filled",
+    "feedback not committed",
+    "not pushed",
+    "diverged",
+    "refused",
+    "failed",
+}
 
 
 @dataclass(frozen=True)
@@ -122,6 +130,8 @@ def repo_status(
             return RepoStatus(
                 name, "refused", detail="its checkout does not track a branch on origin"
             )
+        if unfilled_points(settings, assignment, template_text(settings, folder)):
+            state = "template not filled"
         late = late_commit(folder, assignment.deadline, graders)
     except GitError as error:
         if is_missing_repo(error):
@@ -150,10 +160,7 @@ def status_report(assignment: Assignment, results: list[RepoStatus]) -> str:
     if problems:
         lines.append("Refused or failed:")
         lines.extend(f"  {r.student}: {r.detail}" for r in problems)
-    counts = Counter(r.state for r in results)
-    summary = (
-        ", ".join(f"{counts[s]} {s}" for s in STATES if counts[s]) or "no students"
-    )
+    summary = state_counts(STATES, [r.state for r in results])
     lines.append(f"{assignment.name}: {summary}")
     return "\n".join(lines)
 

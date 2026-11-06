@@ -29,7 +29,7 @@ use your own names.
   with a notebook that has nbgrader metadata, for example an exercise from
   an earlier course.
 - [ ] Set up the course repository as in
-  [Setting up a course](setting-up-a-course.md), with four differences:
+  [Setting up a course](setting-up-a-course.md), with five differences:
   - The roster is a copy of Classroom 50's own `roster.csv` with a `grader`
     column that names Emma for every student. Add a row for Carol if the file
     has none with her username. Leave any staff rows (`role` `ta`, `hta` or
@@ -38,6 +38,7 @@ use your own names.
     names the grader already.
   - `Exercise-1` gets a deadline after Alice's first push, and Alice pushes
     a second commit after the deadline.
+  - `Exercise-1` has `points = { "Problem 1" = 8, "Problem 2" = 12 }`.
   - `Final-assignment` has `type = "group"`.
 - [ ] Give the TA team *Read* access to the teacher's repository, as to the
   course repository.
@@ -70,9 +71,13 @@ Run the commands in the course folder.
   `README.md` alone. `grader status Exercise-1 --grader Emma`
   shows Bob as `student pushed since`, Alice as `up to date` and Carol as
   `no repo`.
-- [ ] `jupyter lab` opens the notebooks under `submitted/`. Write feedback
-  into Alice's and Bob's `README.md`. `grader status Exercise-1 --grader
-  Emma` now shows both as `feedback not committed`.
+- [ ] `grader template Exercise-1 --grader Emma` adds the grading template
+  to the end of Alice's and Bob's `README.md`. `grader status Exercise-1
+  --grader Emma` shows both as `template not filled`.
+- [ ] `jupyter lab` opens the notebooks under `submitted/`. Fill in Alice's
+  and Bob's templates: the points before each slash, the total and a
+  comment. `grader status Exercise-1 --grader Emma` now shows both as
+  `feedback not committed`.
 - [ ] `grader push Exercise-1 --grader Emma --dry-run` shows what would be
   pushed and changes nothing on GitHub.
 - [ ] `grader push Exercise-1 --grader Emma` pushes. On GitHub, Alice's and

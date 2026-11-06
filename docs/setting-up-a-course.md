@@ -127,12 +127,13 @@ assistants get the changes with `git pull`.
    [Releasing an assignment](#releasing-an-assignment)) and add its deadline to
    `grader.toml`.
 
-2. Write the exercise's grading template and share it with the assistants, for
-   example in a Google Doc. It is the text they paste into each student's
-   `README.md` and fill in with the points and feedback. Give them the model
-   solutions too: add the TA team with the role *Read* to the exercise's
-   `-grading` repository, as you did for the course repository, or share the
-   solutions on Google Drive and tell them where.
+2. Set the exercise's points in `grader.toml`, as in
+   [The grading template](#the-grading-template), and commit and push the
+   change. The assistants add the template to each student's `README.md` with
+   `grader template` and fill it in. Give them the model solutions too: add
+   the TA team with the role *Read* to the exercise's `-grading` repository,
+   as you did for the course repository, or share the solutions on Google
+   Drive and tell them where.
 
 3. Collect the scores in Classroom 50 once most students have accepted, again
    before each exercise or help session, and once after the deadline. The
@@ -190,7 +191,8 @@ Classroom 50: when students join later, copy the new rows and push again.
 
 `grader.toml` is the course's settings file, in the course folder: the
 GitHub organization and Classroom 50 classroom, the roster file, the
-assignments with their repository names and deadlines, and
+assignments with their repository names, deadlines and
+[grading template](#the-grading-template) points, and
 [the grading spreadsheet](#the-grading-spreadsheet). `grader init` writes it,
 and every command reads it.
 
@@ -207,6 +209,7 @@ feedback_files = ["README.md"]
 # repo_prefix = "isda-exercise-3"   # default: <classroom>-<name> in lower case
 # source_repo = "IntroSDA-2026/Exercise-3-grading"   # default: <organization>/<name>-grading
 deadline = 2026-11-13T23:59:00+02:00
+points = { "Problem 1" = 8, "Problem 2" = 12 }   # for grader template
 
 [assignments.Final-assignment]
 type = "group"
@@ -238,6 +241,83 @@ and so on. `fetch`, `status` and `push` handle each team like
 a student, in `submitted/<team>/<Assignment>`, and `--student` also selects
 teams by name. A team named like a student in the roster is refused, because
 both would use the same folder.
+
+## The grading template
+
+`grader template Exercise-1` adds a grading template to the end of each
+student's `README.md`, for the assistants to fill in. Each assignment's table
+in `grader.toml` gives the problems and their maximum points, in order, and
+optionally its own comment. These are the points of Introduction to Spatial
+Data Analysis in 2026, to add to the assignments' tables:
+
+```toml
+[assignments.Exercise-1]
+points = { "Problem 1" = 8, "Problem 2" = 11, "Problem 3" = 1 }
+
+[assignments.Exercise-2]
+points = { "Problem 1" = 8, "Problem 2" = 11, "Problem 3" = 1 }
+
+[assignments.Exercise-3]
+points = { "Problem 1" = 1, "Problem 2" = 3, "Problem 3" = 4, "Problem 4" = 4, "Problem 5" = 4, "Problem 6" = 3, "Problem 7" = 1 }
+
+[assignments.Exercise-4]
+points = { "Problem 1" = 3, "Problem 2" = 6, "Problem 3" = 5, "Problem 4" = 5, "Problem 6" = 1 }
+
+[assignments.Exercise-5]
+points = { "Task 1" = 5, "Task 2" = 10 }
+comment = "Thank you for the valuable feedback! 🙂"
+```
+
+Exercise 4 has no points for Problem 5, which is optional.
+
+For Exercise 1 the template is:
+
+```
+## Grading
+**Points:**
+- Problem 1: /8 points
+- Problem 2: /11 points
+- Problem 3: /1 points
+
+**Total: /20 points**
+
+Comments:
+
+Good job!
+```
+
+The total is the sum of the points, and the comment is "Good job!" unless the
+assignment gives its own. Set the points before the assistants add the
+template: templates added earlier keep the old points, and `grader push` no
+longer recognises their empty lines. A README that already has the template's first
+line, `## Grading`, is left alone, so running the command again reaches only
+the READMEs without the template. While a problem line or the total line is
+still exactly as the template wrote it, `grader push` skips that student and
+`grader status` shows `template not filled`, so an empty template does not
+reach the student.
+
+To change the layout for every assignment, add a `[grading_template]` table.
+`text` holds `{problems}` and can hold `{total}` and `{comment}`; its first
+line, which must be plain text, marks a README that has the template.
+`problem` is the line for each problem, with `{name}` and `{points}`, and
+`comment` is the default comment. These are the defaults:
+
+```toml
+[grading_template]
+text = """
+## Grading
+**Points:**
+{problems}
+
+**Total: /{total} points**
+
+Comments:
+
+{comment}
+"""
+problem = "- {name}: /{points} points"
+comment = "Good job!"
+```
 
 ## Releasing an assignment
 
