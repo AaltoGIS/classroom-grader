@@ -28,7 +28,7 @@ This replaces steps 3 and 4 of the README.
    - On macOS and Linux, run `read -s GH_TOKEN && export GH_TOKEN`, paste the
      token and press Enter. It is not shown, and it stays out of the shell's
      history.
-   - In the Miniforge Prompt, run `set GH_TOKEN=YOUR_TOKEN` with the token in
+   - In the Anaconda Prompt, run `set GH_TOKEN=YOUR_TOKEN` with the token in
      place of `YOUR_TOKEN`.
 
    The variable lasts until the terminal is closed, so repeat this step in
