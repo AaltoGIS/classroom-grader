@@ -8,7 +8,7 @@ has reached GitHub, and commits and pushes the feedback.
 This guide is for course assistants. Teachers set up a course as described
 in [Setting up a course](docs/setting-up-a-course.md).
 
-![The grading workflow. One-time setup: install the environment, connect GitHub access, clone the course folder. The grading loop, repeated for each exercise: start and sync, check your students, fetch submissions, grade notebooks, review grading status, preview and publish the feedback.](img/classroom-grader-workflow.png)
+![The grading workflow. One-time setup: install the environment, connect GitHub access, clone the course folder. The grading loop, repeated for each exercise: start grading, check your students, fetch submissions, grade notebooks, review grading status, preview and publish the feedback, then fill in the grading spreadsheet.](img/classroom-grader-workflow.png)
 
 The sections below go through these steps one by one.
 
@@ -292,7 +292,7 @@ time (default 8).
 ## Windows notes
 
 - Run the commands in the Anaconda Prompt, after `conda activate grader`.
-- Paths may use backslashes: `grader fetch Exercise-3 --course C:\Courses\IntroSDA-2026`.
+- Paths may use backslashes: `grader fetch Exercise-1 --course C:\Courses\IntroSDA-2026`.
 
 ## Questions and answers
 

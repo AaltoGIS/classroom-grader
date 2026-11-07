@@ -50,3 +50,16 @@ nbgrader on PATH, only the `grader source` step is. At the start, the test
 prints the name that all of the run's repositories start with. If a run
 stops before it deletes them, delete the repositories with that name in the
 test organization by hand.
+
+## The workflow picture
+
+The picture at the top of the README, `img/classroom-grader-workflow.png`, is
+drawn from `img/classroom-grader-workflow.svg`. After changing the SVG, render
+it at twice its size (3200 × 2160 pixels) with resvg:
+
+```
+uv run --no-project --with resvg-py python -c "import resvg_py, pathlib; pathlib.Path('img/classroom-grader-workflow.png').write_bytes(bytes(resvg_py.svg_to_bytes(svg_path='img/classroom-grader-workflow.svg', zoom=2)))"
+```
+
+The text takes its fonts from the computer that renders it, so check the
+result, for example that each code line fits its box.

@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1080" viewBox="0 0 1600 1080" role="img" aria-labelledby="title desc">
+  <title id="title">Grading with classroom-grader — course assistant workflow</title>
+  <desc id="desc">A two-stage infographic: one-time setup with Miniconda, GitHub authentication and cloning the private grading repository; then a repeatable six-step grading loop: start, check students, fetch, add the grading template and grade, check status, and push feedback, then enter the points in the grading spreadsheet.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#F9FCFD"/>
+      <stop offset="1" stop-color="#F1F7F6"/>
+    </linearGradient>
+    <linearGradient id="masthead" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#10263A"/>
+      <stop offset="0.58" stop-color="#143C4A"/>
+      <stop offset="1" stop-color="#1B5152"/>
+    </linearGradient>
+    <linearGradient id="setupAccent" x1="0" x2="1">
+      <stop offset="0" stop-color="#4C83BA"/>
+      <stop offset="1" stop-color="#86ACC9"/>
+    </linearGradient>
+    <linearGradient id="loopAccent" x1="0" x2="1">
+      <stop offset="0" stop-color="#129D90"/>
+      <stop offset="1" stop-color="#50BAA3"/>
+    </linearGradient>
+    <filter id="panelShadow" x="-10%" y="-15%" width="120%" height="140%">
+      <feDropShadow dx="0" dy="7" stdDeviation="13" flood-color="#163347" flood-opacity="0.065"/>
+    </filter>
+    <marker id="blueArrow" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,4.5 L0,9 Z" fill="#6B96B9"/>
+    </marker>
+    <marker id="greenArrow" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,5 L0,10 Z" fill="#259D90"/>
+    </marker>
+    <style><![CDATA[
+      .font { font-family: Inter, "Aptos", "Segoe UI", Arial, sans-serif; }
+      .mono { font-family: "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+      .panel { fill: #fff; stroke: #DDE8EC; stroke-width: 1.5; filter: url(#panelShadow); }
+      .setupCard { fill: #F5F9FD; stroke: #D7E4EF; stroke-width: 1.5; }
+      .loopCard { fill: #F4FBF8; stroke: #D3E9E3; stroke-width: 1.5; }
+      .cardTitle { fill: #19354A; font-weight: 800; font-size: 23px; letter-spacing: -0.45px; }
+      .body { fill: #577083; font-size: 17px; }
+      .code { font-size: 16px; fill: #294C68; font-weight: 600; }
+      .codeGreen { font-size: 16px; fill: #166F68; font-weight: 600; }
+      .codeSmall { font-size: 13.25px; fill: #166F68; font-weight: 600; }
+      .num { fill: #fff; font-size: 19px; font-weight: 800; text-anchor: middle; }
+      .art { fill: none; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; opacity: .46; }
+    ]]></style>
+  </defs>
+
+  <!-- Header -->
+  <rect width="1600" height="1080" fill="url(#canvas)"/>
+  <rect width="1600" height="184" fill="url(#masthead)"/>
+  <circle cx="1555" cy="-56" r="250" fill="none" stroke="#72B0A6" stroke-width="2" opacity=".12"/>
+  <circle cx="1555" cy="-56" r="205" fill="none" stroke="#72B0A6" stroke-width="2" opacity=".18"/>
+  <circle cx="1555" cy="-56" r="155" fill="none" stroke="#72B0A6" stroke-width="2" opacity=".18"/>
+  <text x="72" y="42" class="font" font-size="15" font-weight="800" letter-spacing="2.6" fill="#9AD7CB">COURSE ASSISTANT'S QUICK GUIDE</text>
+  <text x="70" y="100" class="font" font-size="52" font-weight="800" letter-spacing="-2" fill="#FFFFFF">Grading with <tspan fill="#A8E8DD">classroom-grader</tspan></text>
+  <text x="74" y="144" class="font" font-size="22" fill="#D1E2E8">Set up once. Then repeat a clear workflow for every exercise.</text>
+  <rect x="1242" y="51" width="278" height="43" rx="21" fill="#FFFFFF" opacity=".10"/>
+  <rect x="1242" y="51" width="278" height="43" rx="21" fill="none" stroke="#B2D5D0" opacity=".25"/>
+  <text x="1381" y="78" class="font" font-size="16" font-weight="700" text-anchor="middle" fill="#EAF8F5">Classroom 50  +  nbgrader</text>
+  <path d="M1290 117 H1490" stroke="#8EC5C1" stroke-width="3" stroke-linecap="round" opacity=".5"/>
+  <circle cx="1290" cy="117" r="9" fill="#D4ECE7"/>
+  <circle cx="1390" cy="117" r="9" fill="#8BCCC1"/>
+  <circle cx="1490" cy="117" r="9" fill="#40B29F"/>
+  <text x="1390" y="149" class="font" font-size="14" fill="#CEE6E3" text-anchor="middle">repos  →  assessment  →  feedback</text>
+
+  <!-- One-time setup area -->
+  <rect class="panel" x="58" y="202" width="1484" height="280" rx="29"/>
+  <rect x="87" y="223" width="43" height="34" rx="12" fill="url(#setupAccent)"/>
+  <text x="108.5" y="246" class="font" font-size="19" font-weight="800" fill="white" text-anchor="middle">A</text>
+  <text x="145" y="247" class="font" font-size="26" font-weight="800" letter-spacing="-.6" fill="#19364B">ONE-TIME SETUP</text>
+  <text x="1498" y="247" class="font" font-size="16" font-weight="700" fill="#668299" text-anchor="end">Install on each computer · clone once per course</text>
+
+  <rect class="setupCard" x="92" y="279" width="448" height="178" rx="19"/>
+  <circle cx="129" cy="315" r="22" fill="#4C83BA"/>
+  <text x="129" y="322" class="font num">1</text>
+  <text x="169" y="324" class="font cardTitle">Install the environment</text>
+  <!-- package icon -->
+  <g class="art" stroke="#7AA4C5" transform="translate(459 299)">
+    <path d="M0 10 L16 2 L32 10 L16 18 Z M0 10 V29 L16 37 L32 29 V10 M16 18 V37"/>
+  </g>
+  <text x="117" y="363" class="font body">Install Miniconda; create the course</text>
+  <text x="117" y="385" class="font body">environment from its .yml file.</text>
+  <rect x="116" y="404" width="400" height="36" rx="10" fill="#E5EEF7"/>
+  <text x="129" y="428" class="mono code">conda env create -f environment.yml</text>
+
+  <rect class="setupCard" x="576" y="279" width="448" height="178" rx="19"/>
+  <circle cx="613" cy="315" r="22" fill="#4C83BA"/>
+  <text x="613" y="322" class="font num">2</text>
+  <text x="653" y="324" class="font cardTitle">Connect GitHub access</text>
+  <g class="art" stroke="#7AA4C5" transform="translate(948 298)">
+    <circle cx="12" cy="13" r="9"/>
+    <path d="M20 20 L35 35 M29 29 H38 M33 25 V35"/>
+  </g>
+  <text x="601" y="363" class="font body">Accept the course invitation, set git</text>
+  <text x="601" y="385" class="font body">identity, and verify WRITE access.</text>
+  <rect x="600" y="404" width="400" height="36" rx="10" fill="#E5EEF7"/>
+  <text x="613" y="428" class="mono code">gh auth login → gh auth setup-git</text>
+
+  <rect class="setupCard" x="1060" y="279" width="448" height="178" rx="19"/>
+  <circle cx="1097" cy="315" r="22" fill="#4C83BA"/>
+  <text x="1097" y="322" class="font num">3</text>
+  <text x="1137" y="324" class="font cardTitle">Clone the course folder</text>
+  <g class="art" stroke="#7AA4C5" transform="translate(1433 300)">
+    <path d="M2 10 H15 L21 16 H36 V37 H2 Z"/>
+    <path d="M2 17 H36"/>
+  </g>
+  <text x="1085" y="363" class="font body">Ask the teacher for the private grading</text>
+  <text x="1085" y="385" class="font body">repo: settings, roster, nbgrader config.</text>
+  <rect x="1084" y="404" width="400" height="36" rx="10" fill="#E5EEF7"/>
+  <text x="1097" y="428" class="mono code">git clone …/grading IntroSDA-2026</text>
+
+  <path d="M544 367 H570" stroke="#6B96B9" stroke-width="3" stroke-linecap="round" marker-end="url(#blueArrow)"/>
+  <path d="M1028 367 H1054" stroke="#6B96B9" stroke-width="3" stroke-linecap="round" marker-end="url(#blueArrow)"/>
+
+  <!-- transition between setup and grading -->
+  <path d="M800 482 V508" stroke="#A4C5C5" stroke-width="3" stroke-dasharray="3 6" stroke-linecap="round"/>
+
+  <!-- Repeated grading area -->
+  <rect class="panel" x="58" y="508" width="1484" height="494" rx="29"/>
+  <rect x="87" y="528" width="43" height="34" rx="12" fill="url(#loopAccent)"/>
+  <text x="108.5" y="551" class="font" font-size="19" font-weight="800" fill="white" text-anchor="middle">B</text>
+  <text x="145" y="552" class="font" font-size="26" font-weight="800" letter-spacing="-.6" fill="#19364B">THE GRADING LOOP</text>
+  <rect x="1252" y="526" width="253" height="36" rx="18" fill="#E1F4ED"/>
+  <path transform="translate(-16.5 0)" d="M1284 544 a9 9 0 1 1 3 7 M1288 539 v6 h-6" stroke="#188F7F" stroke-width="2.7" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="1489" y="549" class="font" font-size="15.5" font-weight="800" text-anchor="end" fill="#148377">REPEAT EACH EXERCISE</text>
+
+  <!-- Row 1, reading left to right: 1 -> 2 -> 3 -->
+  <rect class="loopCard" x="92" y="581" width="448" height="174" rx="19"/>
+  <circle cx="129" cy="618" r="22" fill="#159B8C"/>
+  <text x="129" y="625" class="font num">1</text>
+  <text x="169" y="627" class="font cardTitle">Start grading</text>
+  <g class="art" stroke="#66B6AA" transform="translate(462 599)">
+    <path d="M4 9 L17 21 L4 33 M22 33 H37"/>
+  </g>
+  <text x="117" y="670" class="font body">Activate the environment and go to</text>
+  <text x="117" y="692" class="font body">your course folder.</text>
+  <rect x="116" y="709" width="400" height="33" rx="10" fill="#DEF3EB"/>
+  <text x="129" y="731" class="mono codeGreen" style="font-size:15px">conda activate grader · cd IntroSDA-2026</text>
+
+  <rect class="loopCard" x="576" y="581" width="448" height="174" rx="19"/>
+  <circle cx="613" cy="618" r="22" fill="#159B8C"/>
+  <text x="613" y="625" class="font num">2</text>
+  <text x="653" y="627" class="font cardTitle">Check your students</text>
+  <g class="art" stroke="#66B6AA" transform="translate(941 600)">
+    <circle cx="12" cy="11" r="6"/><circle cx="31" cy="13" r="5"/>
+    <path d="M0 34 C0 21 24 21 24 34 M24 25 C34 22 42 28 42 34"/>
+  </g>
+  <text x="601" y="670" class="font body">See who the roster assigns to you;</text>
+  <text x="601" y="692" class="font body">use your own assistant name.</text>
+  <rect x="600" y="709" width="400" height="33" rx="10" fill="#DEF3EB"/>
+  <text x="613" y="731" class="mono codeGreen">grader students --grader Emma</text>
+
+  <rect class="loopCard" x="1060" y="581" width="448" height="174" rx="19"/>
+  <circle cx="1097" cy="618" r="22" fill="#159B8C"/>
+  <text x="1097" y="625" class="font num">3</text>
+  <text x="1137" y="627" class="font cardTitle">Fetch submissions</text>
+  <g class="art" stroke="#66B6AA" transform="translate(1438 598)">
+    <path d="M18 0 V27 M7 16 L18 27 L29 16 M2 28 V36 H34 V28"/>
+  </g>
+  <text x="1085" y="670" class="font body">Clone or update each student's repo;</text>
+  <text x="1085" y="692" class="font body">note missing or potentially late work.</text>
+  <rect x="1084" y="709" width="400" height="33" rx="10" fill="#DEF3EB"/>
+  <text x="1097" y="731" class="mono codeGreen">grader fetch Exercise-1 --grader Emma</text>
+
+  <!-- Row 2, reading right to left: 4 -> 5 -> 6 -->
+  <rect class="loopCard" x="1060" y="785" width="448" height="171" rx="19"/>
+  <circle cx="1097" cy="821" r="22" fill="#159B8C"/>
+  <text x="1097" y="828" class="font num">4</text>
+  <text x="1137" y="830" class="font cardTitle">Grade notebooks</text>
+  <g class="art" stroke="#66B6AA" transform="translate(1442 801)">
+    <path d="M0 0 H30 V38 H0 Z M7 8 H23 M7 17 H23 M7 26 H18"/>
+  </g>
+  <text x="1085" y="868" class="font body">Add the template, then fill in README.md.</text>
+  <rect x="1084" y="879" width="400" height="29" rx="9" fill="#DEF3EB"/>
+  <text x="1095" y="899" class="mono codeSmall">grader template Exercise-1 --grader Emma</text>
+  <rect x="1084" y="914" width="400" height="29" rx="9" fill="#DEF3EB"/>
+  <text x="1095" y="934" class="mono codeSmall">jupyter lab</text>
+
+  <rect class="loopCard" x="576" y="785" width="448" height="171" rx="19"/>
+  <circle cx="613" cy="821" r="22" fill="#159B8C"/>
+  <text x="613" y="828" class="font num">5</text>
+  <text x="653" y="830" class="font cardTitle">Review grading status</text>
+  <g class="art" stroke="#66B6AA" transform="translate(950 804)">
+    <path d="M0 4 H30 M0 17 H30 M0 30 H30 M3 4 L7 8 L15 0 M3 17 L7 21 L15 13"/>
+  </g>
+  <text x="601" y="868" class="font body">Check unfilled templates, unpushed feedback,</text>
+  <text x="601" y="890" class="font body">missing submissions and other local changes.</text>
+  <rect x="600" y="911" width="400" height="32" rx="10" fill="#DEF3EB"/>
+  <text x="613" y="933" class="mono codeGreen">grader status Exercise-1 --grader Emma</text>
+
+  <rect class="loopCard" x="92" y="785" width="448" height="171" rx="19"/>
+  <circle cx="129" cy="821" r="22" fill="#159B8C"/>
+  <text x="129" y="828" class="font num">6</text>
+  <text x="169" y="830" class="font cardTitle">Preview &amp; publish</text>
+  <g class="art" stroke="#66B6AA" transform="translate(457 802)">
+    <path d="M0 30 H36 V12 H0 Z M18 27 V0 M7 11 L18 0 L29 11"/>
+  </g>
+  <text x="117" y="867" class="font body">Push feedback, then fill in the spreadsheet.</text>
+  <rect x="116" y="879" width="400" height="29" rx="9" fill="#DEF3EB"/>
+  <text x="127" y="899" class="mono codeSmall">grader push Exercise-1 --grader Emma --dry-run</text>
+  <rect x="116" y="914" width="400" height="29" rx="9" fill="#DEF3EB"/>
+  <text x="127" y="934" class="mono codeSmall">grader push Exercise-1 --grader Emma</text>
+
+  <!-- Directional connectors emphasize the snake-shaped grading sequence. -->
+  <path d="M544 670 H570" stroke="#259D90" stroke-width="3.5" stroke-linecap="round" marker-end="url(#greenArrow)"/>
+  <path d="M1028 670 H1054" stroke="#259D90" stroke-width="3.5" stroke-linecap="round" marker-end="url(#greenArrow)"/>
+  <path d="M1284 759 V779" stroke="#259D90" stroke-width="3.5" stroke-linecap="round" marker-end="url(#greenArrow)"/>
+  <path d="M1056 868 H1030" stroke="#259D90" stroke-width="3.5" stroke-linecap="round" marker-end="url(#greenArrow)"/>
+  <path d="M572 868 H546" stroke="#259D90" stroke-width="3.5" stroke-linecap="round" marker-end="url(#greenArrow)"/>
+
+  <!-- Feedback cycle indicator -->
+  <text x="94" y="985" class="font" font-size="15" fill="#647C88">If push reports refused, blocked or conflict, fix it locally and push again.</text>
+  <text x="1205.8" y="986" class="font" font-size="16" font-weight="800" text-anchor="end" fill="#158B7E">↻</text>
+  <text x="1213.8" y="986" class="font" font-size="16" font-weight="800" fill="#158B7E">NEXT EXERCISE: REPEAT STEPS 1–6</text>
+
+  <!-- Footer -->
+  <text x="72" y="1034" class="font" font-size="18"><tspan font-weight="700" fill="#29485A">Make the examples yours:</tspan><tspan dx="12" fill="#526D7B">replace IntroSDA-2026, Exercise-1 and Emma with your own values.</tspan></text>
+  <text x="72" y="1061" class="font" font-size="15" fill="#79909C">Source: github.com/AaltoGIS/classroom-grader · README, assistant workflow · November 2026</text>
+  <text x="1508" y="1061" class="font" font-size="15" fill="#79909C" text-anchor="end">Teacher maintains grader.toml, roster and nbgrader configuration.</text>
+</svg>
