@@ -23,7 +23,9 @@ LIMITS_SHEET = "Limits"
 # The grading template that grader template adds to the students' READMEs.
 DEFAULT_TEMPLATE_TEXT = """\
 ## Grading
+
 **Points:**
+
 {problems}
 
 **Total: /{total} points**

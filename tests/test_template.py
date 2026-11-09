@@ -18,7 +18,9 @@ points = { "Problem 1" = 8, "Problem 2" = 11, "Problem 3" = 1 }
 """
 TEMPLATE = """\
 ## Grading
+
 **Points:**
+
 - Problem 1: /8 points
 - Problem 2: /11 points
 - Problem 3: /1 points
