@@ -28,7 +28,9 @@ AaltoGIS/gradertools.
   READMEs; `grader push` skips and `grader status` flags a template that
   still has a line without points.
 - `grader source` clones or updates the teacher's repository into `source/`
-  and releases the assignment with nbgrader.
+  and releases the notebooks at its top level with nbgrader; a repository
+  without them, such as one with grading guidelines only, is only cloned or
+  updated.
 - Group assignments: the teams' repositories are found through the GitHub
   API and handled like students.
 - `grader grading-sheet` writes a grading spreadsheet from the

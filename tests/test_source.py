@@ -11,6 +11,8 @@ roster = "student_info.csv"
 
 [assignments.Exercise-1]
 
+[assignments.Exercise-2]
+
 [assignments.Final-assignment]
 type = "group"
 source_repo = "Sustainability-GIS-2023/Final-assignment"
@@ -46,11 +48,17 @@ def logged_calls(log):
     ]
 
 
-def test_source_clones_updates_and_releases_with_nbgrader(
-    course, github, nbgrader_log, capsys
+def test_source_clones_updates_and_releases_notebooks_with_nbgrader(
+    course, github, nbgrader_log, monkeypatch, capsys
 ):
     (course / "grader.toml").write_text(SETTINGS, encoding="utf-8")
     github.push("Exercise-1-grading", {"ex1.ipynb": "{}"}, "teacher", WHEN)
+    github.push(
+        "Exercise-2-grading",
+        {"guidelines.pdf": "%PDF-1.7", "README.md": "# Exercise 2", ".draft.ipynb": ""},
+        "teacher",
+        WHEN,
+    )
     github.push(
         "Final-assignment",
         {"final.ipynb": "{}"},
@@ -85,6 +93,15 @@ def test_source_clones_updates_and_releases_with_nbgrader(
         (root, "db assignment add Exercise-1"),
         (root, "generate_assignment Exercise-1"),
     ]
+
+    # without notebooks, nbgrader is neither run nor needed
+    monkeypatch.setattr("classroom_grader.source.shutil.which", lambda name: None)
+    assert cli.main(["source", "Exercise-2", "--course", str(course)]) == 0
+    assert (
+        capsys.readouterr().out
+        == "Exercise-2: IntroSDA-2026/Exercise-2-grading cloned into source/\n"
+    )
+    assert len(logged_calls(nbgrader_log)) == 6
 
 
 @pytest.mark.parametrize(

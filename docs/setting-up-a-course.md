@@ -330,7 +330,10 @@ This clones the teacher's repository (`source_repo`) into
 `nbgrader db assignment add` and `nbgrader generate_assignment`, which writes
 the student version into `release/Exercise-3`. nbgrader leaves an existing
 release alone unless you add `--force`. A notebook without nbgrader metadata
-is copied unchanged. `grader source` never pushes anything.
+is copied unchanged. A repository without notebooks at its top level, for
+example one that holds only grading guidelines as a PDF, is only cloned or
+updated: nbgrader has nothing to release from it. `grader source` never
+pushes anything.
 
 To publish the student version, put it in the exercise's student repository,
 for example `IntroSDA-2026/Exercise-3`. `source/` holds the solutions, so never

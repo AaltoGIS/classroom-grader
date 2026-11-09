@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 from classroom_grader import GraderError
 from classroom_grader.course import (
@@ -23,7 +24,7 @@ from classroom_grader.repo import (
 )
 from classroom_grader.settings import Assignment, Settings
 
-HELP = "Clone or update the teacher's repositories and release them with nbgrader."
+HELP = "Clone or update the teacher's repositories and release their notebooks."
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
@@ -42,21 +43,20 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
 def run(args: argparse.Namespace) -> int:
     """Update each assignment's source and run nbgrader; 1 if any assignment failed.
 
-    Nothing is pushed anywhere.
+    nbgrader is skipped for a source without notebooks. Nothing is pushed
+    anywhere.
     """
     settings = course_settings(args)
     assignments = select_assignments(settings, args.assignments)
-    nbgrader = shutil.which("nbgrader")
-    if nbgrader is None:
-        raise GraderError(
-            "nbgrader is not on PATH; activate the course's Python environment first"
-        )
-    nbgrader = os.path.abspath(nbgrader)  # it runs from the course folder
+    nbgrader = None
     failed = False
     for assignment in assignments:
         try:
             state = update_source(settings, assignment)
             print(f"{assignment.name}: {assignment.source_repo} {state}")
+            if not has_notebooks(settings.root / "source" / assignment.name):
+                continue
+            nbgrader = nbgrader or find_nbgrader()
             run_nbgrader(
                 nbgrader, ["db", "assignment", "add", assignment.name], settings
             )
@@ -69,6 +69,27 @@ def run(args: argparse.Namespace) -> int:
             print(f"{assignment.name}: {error}", file=sys.stderr)
             failed = True
     return 1 if failed else 0
+
+
+def has_notebooks(folder: Path) -> bool:
+    """Whether ``folder`` holds a notebook for nbgrader to release.
+
+    nbgrader takes the visible ``*.ipynb`` files at the top of the folder.
+    """
+    return any(
+        path.is_file() and not path.name.startswith(".")
+        for path in folder.glob("*.ipynb")
+    )
+
+
+def find_nbgrader() -> str:
+    """Return the absolute path of ``nbgrader`` on PATH."""
+    nbgrader = shutil.which("nbgrader")
+    if nbgrader is None:
+        raise GraderError(
+            "nbgrader is not on PATH; activate the course's Python environment first"
+        )
+    return os.path.abspath(nbgrader)  # it runs from the course folder
 
 
 def update_source(settings: Settings, assignment: Assignment) -> str:
