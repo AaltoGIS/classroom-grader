@@ -216,10 +216,10 @@ it, every student in the roster is included. Name single students with
    in step 5. Running `grader template` again, for example after a later
    fetch, adds the template only to the READMEs that do not have it yet.
 
-   The model solutions are in the exercise's `-grading` repository or on Google
-   Drive, as the teacher tells you. To get them from the repository, run
-   `grader source Exercise-1`, which puts them in `source/Exercise-1`. That
-   folder stays out of the course repository.
+   The model solutions and grading guidelines are in the exercise's `-grading`
+   repository or on Google Drive, as the teacher tells you. To get them from
+   the repository, run `grader source Exercise-1`, which puts them in
+   `source/Exercise-1`. That folder stays out of the course repository.
 
 4. See what is left:
 
