@@ -97,10 +97,9 @@ def test_source_clones_updates_and_releases_notebooks_with_nbgrader(
     # without notebooks, nbgrader is neither run nor needed
     monkeypatch.setattr("classroom_grader.source.shutil.which", lambda name: None)
     assert cli.main(["source", "Exercise-2", "--course", str(course)]) == 0
-    assert capsys.readouterr().out == (
-        "Exercise-2: IntroSDA-2026/Exercise-2-grading cloned into source/\n"
-        "Exercise-2: no notebooks in source/Exercise-2, "
-        "nothing to release with nbgrader\n"
+    assert (
+        capsys.readouterr().out
+        == "Exercise-2: IntroSDA-2026/Exercise-2-grading cloned into source/\n"
     )
     assert len(logged_calls(nbgrader_log)) == 6
 

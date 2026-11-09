@@ -55,10 +55,6 @@ def run(args: argparse.Namespace) -> int:
             state = update_source(settings, assignment)
             print(f"{assignment.name}: {assignment.source_repo} {state}")
             if not has_notebooks(settings.root / "source" / assignment.name):
-                print(
-                    f"{assignment.name}: no notebooks in source/{assignment.name}, "
-                    "nothing to release with nbgrader"
-                )
                 continue
             nbgrader = nbgrader or find_nbgrader()
             run_nbgrader(
