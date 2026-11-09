@@ -274,7 +274,9 @@ For Exercise 1 the template is:
 
 ```
 ## Grading
+
 **Points:**
+
 - Problem 1: /8 points
 - Problem 2: /11 points
 - Problem 3: /1 points
@@ -306,7 +308,9 @@ line, which must be plain text, marks a README that has the template.
 [grading_template]
 text = """
 ## Grading
+
 **Points:**
+
 {problems}
 
 **Total: /{total} points**
