@@ -27,9 +27,10 @@ use your own names.
   for these.
 - [ ] Create the teacher's repository `IntroSDA-2026/Exercise-1-grading`
   with a notebook that has nbgrader metadata, for example an exercise from
-  an earlier course.
+  an earlier course, and `IntroSDA-2026/Exercise-2-grading` with only a PDF,
+  like grading guidelines.
 - [ ] Set up the course repository as in
-  [Setting up a course](setting-up-a-course.md), with five differences:
+  [Setting up a course](setting-up-a-course.md), with six differences:
   - The roster is a copy of Classroom 50's own `roster.csv` with a `grader`
     column that names Emma for every student. Add a row for Carol if the file
     has none with her username. Leave any staff rows (`role` `ta`, `hta` or
@@ -40,7 +41,8 @@ use your own names.
     a second commit after the deadline.
   - `Exercise-1` has `points = { "Problem 1" = 8, "Problem 2" = 12 }`.
   - `Final-assignment` has `type = "group"`.
-- [ ] Give the TA team *Read* access to the teacher's repository, as to the
+  - `grader.toml` has an `[assignments.Exercise-2]` section with no settings.
+- [ ] Give the TA team *Read* access to the teacher's repositories, as to the
   course repository.
 
 ## Install and log in (tester)
@@ -104,6 +106,9 @@ Run the commands in the course folder.
 - [ ] `grader source Exercise-1` clones the teacher's repository into
   `source/Exercise-1` and writes the student version into
   `release/Exercise-1`, where the solutions are left out.
+- [ ] `grader source Exercise-2` clones the teacher's repository into
+  `source/Exercise-2`, where the PDF is, prints only that one line, and
+  creates no `release/Exercise-2`.
 
 ## Report and clean up
 
